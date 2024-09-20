@@ -119,6 +119,6 @@ Description:
   This tool automates the creation of milestones and issues in a GitHub repository
   based on a JSON file, and adds the issues to a newly created GitHub Project (v2) using the gh CLI.
 
-For more information, visit: https://github.com/yourusername/gh-lazy
+For more information, visit: https://github.com/igorcosta/gh-lazy
 `)
 }
