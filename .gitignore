@@ -1,2 +1,46 @@
 /gh-lazy
 /gh-lazy.exe
+.token
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+
+# Go workspace file
+go.work
+
+# Dependency directories (remove the comment below if you use Go modules)
+vendor/
+
+# Go build artifacts
+*.a
+*.o
+*.so
+
+# IDE/editor specific files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Go test binary
+*.test
+
+# Go coverage files
+*.cover

@@ -1,0 +1,155 @@
+{
+    "projectTitle": "Westpac GitHub Enterprise Cloud Implementation",
+    "milestones": [
+      {
+        "title": "Initial Assessment and Planning",
+        "due_on": "2024-10-01",
+        "issues": [
+          {
+            "title": "Conduct infrastructure documentation review and workshop with Westpac stakeholders",
+            "body": "Review the current infrastructure documentation and hold a workshop with Westpac stakeholders to gather requirements."
+          },
+          {
+            "title": "Define project goals and create draft project plan",
+            "body": "Collaboratively define goals and draft the initial project plan based on stakeholder input."
+          },
+          {
+            "title": "Finalise and align project plan with Westpac Stakeholders",
+            "body": "Get final approval from Westpac stakeholders and align the project plan with their requirements."
+          }
+        ]
+      },
+      {
+        "title": "Security and Risk Management",
+        "due_on": "2024-10-15",
+        "issues": [
+          {
+            "title": "Conduct risk assessment documentation review and workshop",
+            "body": "Review existing risk assessment documents and hold a workshop to align with Westpac's security strategy."
+          },
+          {
+            "title": "Develop GitHub security best practices document",
+            "body": "Create a best practices document for GitHub security aligned with Westpac's policy."
+          },
+          {
+            "title": "Document SBOM and validate security strategy",
+            "body": "Document Software Bill of Materials (SBOM) and validate the security strategy recommendations."
+          }
+        ]
+      },
+      {
+        "title": "GitHub Enterprise Cloud Setup Part 1",
+        "due_on": "2024-11-01",
+        "issues": [
+          {
+            "title": "Review organisation and team structure requirements",
+            "body": "Review and document the requirements for the GitHub Enterprise Cloud organisation and team structure."
+          },
+          {
+            "title": "Provide solution options for team structure and repository management",
+            "body": "Recommend options for managing the team structure and repositories in GitHub Enterprise Cloud."
+          }
+        ]
+      },
+      {
+        "title": "GitHub Enterprise Cloud Setup Part 2",
+        "due_on": "2024-11-15",
+        "issues": [
+          {
+            "title": "Provide guidance for network configuration",
+            "body": "Ensure that the network configuration for GitHub Enterprise Cloud is properly set up."
+          },
+          {
+            "title": "Provide guidance for allowlist and proxy connections",
+            "body": "Help configure allowlist and proxy connections for secure GitHub access."
+          }
+        ]
+      },
+      {
+        "title": "Identity Management and Access Control",
+        "due_on": "2024-12-01",
+        "issues": [
+          {
+            "title": "Confirm MFA and SSO approach",
+            "body": "Confirm the multi-factor authentication and single sign-on strategy."
+          },
+          {
+            "title": "Integrate EntraID and create API for group management",
+            "body": "Integrate EntraID and create APIs to manage user groups."
+          },
+          {
+            "title": "Finalise identity management setup",
+            "body": "Complete the identity management setup, including IACU integration."
+          }
+        ]
+      },
+      {
+        "title": "GitHub Actions and Runners",
+        "due_on": "2024-12-15",
+        "issues": [
+          {
+            "title": "Develop GitHub Actions rollout strategy",
+            "body": "Plan and execute the strategy for GitHub Actions rollout."
+          },
+          {
+            "title": "Set up on-premises GitHub runners",
+            "body": "Install and configure on-premises GitHub runners."
+          },
+          {
+            "title": "Configure Azure Kubernetes runners",
+            "body": "Configure runners in Azure Kubernetes Service (AKS) for GitHub Actions."
+          }
+        ]
+      },
+      {
+        "title": "Environment Management and Enforcement",
+        "due_on": "2025-01-01",
+        "issues": [
+          {
+            "title": "Review implementation requirements for automatic environment enforcement",
+            "body": "Determine requirements for automatically enforcing environment configurations."
+          },
+          {
+            "title": "Set up automated provisioning of environment settings",
+            "body": "Provide solutions for automating environment provisioning."
+          },
+          {
+            "title": "Implement peer review requirements for production commits",
+            "body": "Enforce peer review for commits to the production environment."
+          }
+        ]
+      },
+      {
+        "title": "DevOps Best Practices and Operationalisation",
+        "due_on": "2025-01-15",
+        "issues": [
+          {
+            "title": "Review provisioning and enforcement policies",
+            "body": "Ensure that the provisioning and enforcement policies are effective."
+          },
+          {
+            "title": "Establish monitoring practices",
+            "body": "Set up monitoring systems to track the performance of DevOps processes."
+          },
+          {
+            "title": "Create DevOps best practices guide",
+            "body": "Document best practices for DevOps in the GitHub Enterprise Cloud environment."
+          }
+        ]
+      },
+      {
+        "title": "Final Review and Handover",
+        "due_on": "2025-02-01",
+        "issues": [
+          {
+            "title": "Conduct final assessment and review",
+            "body": "Perform the final review of all project components and ensure everything is in order."
+          },
+          {
+            "title": "Complete handover and future support planning",
+            "body": "Prepare the final handover documents and plan for future support and maintenance."
+          }
+        ]
+      }
+    ]
+  }
