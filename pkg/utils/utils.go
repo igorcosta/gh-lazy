@@ -51,7 +51,7 @@ func ReadTokenFromFile(filepath string) (string, error) {
 	}
 
 	if err := scanner.Err(); err != nil {
-		return "", fmt.Errorf("reading token file: %w", err)
+		return fmt.Errorf("reading token file: %w", err)
 	}
 
 	return "", fmt.Errorf("GH_TOKEN not found in file")
@@ -90,27 +90,33 @@ func PrintWelcome(username string) {
 ██║     ██╔══██║ ███╔╝    ╚██╔╝  
 ███████╗██║  ██║███████╗   ██║   
 ╚══════╝╚═╝  ╚═╝╚══════╝   ╚═╝   
-Welcome, %s! Let's create some milestones and issues.
+Welcome, %s! Let's automate your GitHub projects.
 `, username)
 }
 
 func PrintHelp() {
 	fmt.Printf(`
-Lazy - GitHub Milestone and Issue Creator
+Lazy - GitHub Project, Milestone, and Issue Manager
 
-Usage: gh lazy [flags]
+Usage: gh lazy [command] [flags]
+
+Commands:
+  create    Create projects, milestones, and issues
+  nuke      Delete a GitHub project and optionally all linked issues
 
 Flags:
-  -reponame string    The repository name (e.g., 'username/repo')
-  -tasks string       Path to the tasks JSON file
-  -tokenfile string   Path to the file containing the GitHub token (default ".token")
+  -r, --repo string         The repository name (e.g., 'username/repo')
+  -t, --tasks string        Path to the tasks JSON file
+  -f, --token-file string   Path to the file containing the GitHub token (default ".token")
 
-Example:
-  gh lazy -reponame user/repo -tasks ./tasks.json
+Use "gh lazy [command] --help" for more information about a command.
+
+Examples:
+  gh lazy create --repo user/repo --tasks ./tasks.json
+  gh lazy nuke --projectid https://github.com/users/yourusername/projects/1 --all --dry-run
 
 Description:
-  This tool automates the creation of milestones and issues in a GitHub repository
-  based on a JSON file, and adds the issues to a newly created GitHub Project (v2) using the gh CLI.
+  This tool automates the creation and deletion of projects, milestones, and issues in a GitHub repository.
 
 For more information, visit: https://github.com/igorcosta/gh-lazy
 `)
@@ -130,6 +136,7 @@ func ParseProjectID(input string) (string, error) {
 	// Otherwise, assume it's a project number
 	return input, nil
 }
+
 func GetGitHubCLIToken() (string, error) {
 	cmd := exec.Command("gh", "auth", "token")
 	output, err := cmd.Output()
@@ -166,8 +173,8 @@ func PrintUserGuide() {
 2. Provided a token file using the -f or --token-file flag
 
 Usage examples:
-  gh lazy create -r username/repo -t tasks.json
-  gh lazy create -r username/repo -t tasks.json -f /path/to/token/file
+  gh lazy create --repo username/repo --tasks tasks.json
+  gh lazy nuke --projectid <project_id_or_url> --all --dry-run
 
 For more information, run: gh lazy --help`)
 }
