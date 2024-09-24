@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -92,7 +93,7 @@ Welcome, %s! Let's create some milestones and issues.
 `, username)
 }
 
-func printHelp() {
+func PrintHelp() {
 	fmt.Printf(`
 Lazy - GitHub Milestone and Issue Creator
 
@@ -111,5 +112,49 @@ Description:
   based on a JSON file, and adds the issues to a newly created GitHub Project (v2) using the gh CLI.
 
 For more information, visit: https://github.com/igorcosta/gh-lazy
+`)
+}
+
+func GetGitHubCLIToken() (string, error) {
+	cmd := exec.Command("gh", "auth", "token")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to get GitHub CLI token: %w", err)
+	}
+	return strings.TrimSpace(string(output)), nil
+}
+
+func GetToken(tokenFile string) (string, error) {
+	// First, try to get the token from the gh CLI
+	token, err := GetGitHubCLIToken()
+	if err == nil && token != "" {
+		return token, nil
+	}
+
+	// If gh CLI token is not available and tokenFile is provided, try to read from file
+	if tokenFile != "" {
+		token, err := ReadTokenFromFile(tokenFile)
+		if err == nil && token != "" {
+			return token, nil
+		}
+		// Only return an error if a token file was specified but couldn't be read
+		return "", fmt.Errorf("failed to read token from specified file: %w", err)
+	}
+
+	// If we've reached this point, no valid token was found
+	return "", fmt.Errorf("GitHub token not found. Please authenticate with 'gh auth login' or provide a token file using the -f flag")
+}
+
+func PrintUserGuide() {
+	fmt.Println(`
+To use gh lazy, please ensure you have:
+1. Authenticated with GitHub CLI using 'gh auth login', or
+2. Provided a token file using the -f or --token-file flag
+
+Usage examples:
+  gh lazy create -r username/repo -t tasks.json
+  gh lazy create -r username/repo -t tasks.json -f /path/to/token/file
+
+For more information, run: gh lazy --help
 `)
 }
