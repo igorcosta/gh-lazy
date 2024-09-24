@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"yourmodule/cmd"
-	"yourmodule/pkg/utils"
+	"github.com/igorcosta/gh-lazy/cmd"
+	"github.com/igorcosta/gh-lazy/pkg/utils"
 )
 
 func main() {
