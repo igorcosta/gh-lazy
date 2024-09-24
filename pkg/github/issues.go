@@ -58,6 +58,16 @@ func (c *Client) UpdateIssueMilestone(ctx context.Context, owner, repo string, i
 	}
 	return nil
 }
+func (c *Client) CloseIssue(ctx context.Context, repo string, issueNumber int) error {
+	cmd := exec.CommandContext(ctx, "gh", "issue", "close", fmt.Sprintf("%d", issueNumber), "--repo", repo, "--yes")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to close issue #%d: %s - %w", issueNumber, string(output), err)
+	}
+	return nil
+}
+
+// not working
 func (c *Client) DeleteIssue(ctx context.Context, repo string, issueNumber int) error {
 	cmd := exec.CommandContext(ctx, "gh", "issue", "delete", fmt.Sprintf("%d", issueNumber), "--repo", repo, "--confirm")
 	output, err := cmd.CombinedOutput()

@@ -10,7 +10,12 @@ import (
 	"github.com/igorcosta/gh-lazy/pkg/models"
 )
 
-func (c *Client) CreateProject(ctx context.Context, owner, title string) (string, error) {
+func (c *Client) CreateProject(ctx context.Context, title string) (string, error) {
+	owner, err := c.GetUsername()
+	if err != nil {
+		return "", fmt.Errorf("failed to get GitHub username: %w", err)
+	}
+
 	cmd := exec.CommandContext(ctx, "gh", "project", "create", "--owner", owner, "--title", title, "--format", "json")
 	output, err := cmd.Output()
 	if err != nil {
@@ -28,7 +33,12 @@ func (c *Client) CreateProject(ctx context.Context, owner, title string) (string
 	return response.URL, nil
 }
 
-func (c *Client) AddIssueToProject(ctx context.Context, owner, projectURL, issueURL string) error {
+func (c *Client) AddIssueToProject(ctx context.Context, projectURL, issueURL string) error {
+	owner, err := c.GetUsername()
+	if err != nil {
+		return fmt.Errorf("failed to get GitHub username: %w", err)
+	}
+
 	// Extract project number from URL
 	parts := strings.Split(projectURL, "/")
 	projectNumber := parts[len(parts)-1]
@@ -44,30 +54,54 @@ func (c *Client) AddIssueToProject(ctx context.Context, owner, projectURL, issue
 	return nil
 }
 
-// List issues linked to the project
-func (c *Client) ListProjectIssues(ctx context.Context, owner, projectNumber string) ([]models.IssueItem, error) {
-	cmd := exec.CommandContext(ctx, "gh", "project", "item-list", projectNumber, "--owner", owner, "--json", "content")
-	output, err := cmd.Output()
+func (c *Client) ListUserProjects(ctx context.Context) ([]models.Project, error) {
+	owner, err := c.GetUsername()
 	if err != nil {
-		return nil, fmt.Errorf("failed to list project items: %w", err)
+		return nil, fmt.Errorf("failed to get GitHub username: %w", err)
 	}
 
-	var items []struct {
-		Content struct {
-			TypeName   string `json:"__typename"`
-			Number     int    `json:"number"`
-			Repository struct {
-				NameWithOwner string `json:"nameWithOwner"`
-			} `json:"repository"`
-		} `json:"content"`
+	cmd := exec.CommandContext(ctx, "gh", "project", "list", "--owner", owner, "--format", "json")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf("failed to list projects: %s - %w", string(output), err)
 	}
 
-	if err := json.Unmarshal(output, &items); err != nil {
+	var result models.ProjectListResponse
+	if err := json.Unmarshal(output, &result); err != nil {
+		return nil, fmt.Errorf("failed to parse projects: %w", err)
+	}
+
+	return result.Projects, nil
+}
+
+func (c *Client) ListProjectIssues(ctx context.Context, projectNumber string) ([]models.IssueItem, error) {
+	owner, err := c.GetUsername()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get GitHub username: %w", err)
+	}
+
+	cmd := exec.CommandContext(ctx, "gh", "project", "item-list", projectNumber, "--owner", owner, "--format", "json")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf("failed to list project items: %s - %w", string(output), err)
+	}
+
+	var result struct {
+		Items []struct {
+			Content struct {
+				TypeName   string `json:"__typename"`
+				Number     int    `json:"number"`
+				Repository string `json:"repository"`
+			} `json:"content"`
+		} `json:"items"`
+	}
+
+	if err := json.Unmarshal(output, &result); err != nil {
 		return nil, fmt.Errorf("failed to parse project items: %w", err)
 	}
 
 	var issues []models.IssueItem
-	for _, item := range items {
+	for _, item := range result.Items {
 		if item.Content.TypeName == "Issue" {
 			issues = append(issues, models.IssueItem{
 				Number:     item.Content.Number,
@@ -79,17 +113,26 @@ func (c *Client) ListProjectIssues(ctx context.Context, owner, projectNumber str
 	return issues, nil
 }
 
-// Delete the project
-func (c *Client) DeleteProject(ctx context.Context, owner, projectNumber string) error {
-	cmd := exec.CommandContext(ctx, "gh", "project", "delete", projectNumber, "--confirm")
+func (c *Client) DeleteProject(ctx context.Context, projectNumber string) error {
+	owner, err := c.GetUsername()
+	if err != nil {
+		return fmt.Errorf("failed to get GitHub username: %w", err)
+	}
+
+	cmd := exec.CommandContext(ctx, "gh", "project", "delete", projectNumber, "--owner", owner, "--yes")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("failed to delete project: %s", string(output))
+		return fmt.Errorf("failed to delete project: %s - %w", string(output), err)
 	}
 	return nil
 }
 
-func (c *Client) LinkProjectToRepo(ctx context.Context, owner, repo, projectNumber string) error {
+func (c *Client) LinkProjectToRepo(ctx context.Context, repo, projectNumber string) error {
+	owner, err := c.GetUsername()
+	if err != nil {
+		return fmt.Errorf("failed to get GitHub username: %w", err)
+	}
+
 	cmd := exec.CommandContext(ctx, "gh", "project", "link", projectNumber,
 		"--owner", owner, "--repo", fmt.Sprintf("%s/%s", owner, repo))
 

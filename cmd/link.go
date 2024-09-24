@@ -35,20 +35,29 @@ var linkCmd = &cobra.Command{
 			return utils.WrapError(err, "failed to get project number")
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-		defer cancel()
+		repoName, err := cmd.Flags().GetString("repo")
+		if err != nil {
+			return utils.WrapError(err, "failed to get repository name")
+		}
 
-		owner, repo, err := splitRepoName(cfg.Repo)
+		if repoName == "" {
+			return fmt.Errorf("repository name is required. Use -r or --repo flag to specify the name")
+		}
+
+		_, repo, err := splitRepoName(repoName)
 		if err != nil {
 			return utils.WrapError(err, "invalid repository name")
 		}
 
-		err = client.LinkProjectToRepo(ctx, owner, repo, projectNumber)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+		defer cancel()
+
+		err = client.LinkProjectToRepo(ctx, repo, projectNumber)
 		if err != nil {
 			return utils.WrapError(err, "failed to link project to repository")
 		}
 
-		utils.LogInfo(fmt.Sprintf("Successfully linked project %s to repository %s/%s", projectNumber, owner, repo))
+		utils.LogInfo(fmt.Sprintf("Successfully linked project %s to repository %s", projectNumber, repoName))
 		return nil
 	},
 }
@@ -56,5 +65,7 @@ var linkCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(linkCmd)
 	linkCmd.Flags().StringP("project", "p", "", "Project number to link")
+	linkCmd.Flags().StringP("repo", "r", "", "The repository name (e.g., 'username/repo')")
 	linkCmd.MarkFlagRequired("project")
+	linkCmd.MarkFlagRequired("repo")
 }

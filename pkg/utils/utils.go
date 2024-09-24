@@ -51,7 +51,7 @@ func ReadTokenFromFile(filepath string) (string, error) {
 	}
 
 	if err := scanner.Err(); err != nil {
-		return fmt.Errorf("reading token file: %w", err)
+		return "", fmt.Errorf("reading token file: %w", err)
 	}
 
 	return "", fmt.Errorf("GH_TOKEN not found in file")

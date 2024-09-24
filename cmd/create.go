@@ -106,7 +106,7 @@ var createCmd = &cobra.Command{
 		failed := 0
 		createdIssues := []string{}
 
-		projectURL, err := client.CreateProject(ctx, owner, tasks.ProjectTitle)
+		projectURL, err := client.CreateProject(ctx, tasks.ProjectTitle)
 		if err != nil {
 			return fmt.Errorf("failed to create project: %w", err)
 		}
@@ -140,7 +140,7 @@ var createCmd = &cobra.Command{
 				}
 
 				issueURL := fmt.Sprintf("https://github.com/%s/%s/issues/%d", owner, repo, issueNumber)
-				err = client.AddIssueToProject(ctx, owner, projectURL, issueURL)
+				err = client.AddIssueToProject(ctx, projectURL, issueURL)
 				if err != nil {
 					color.Yellow("⚠️ Failed to add issue #%d to project: %v", issueNumber, err)
 					skipped++
@@ -174,7 +174,9 @@ var createCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(createCmd)
+	createCmd.Flags().StringP("repo", "r", "", "The repository name (e.g., 'username/repo')")
 	createCmd.Flags().StringP("tasks", "t", "", "Path to the tasks JSON file")
+	createCmd.MarkFlagRequired("repo")
 	createCmd.MarkFlagRequired("tasks")
 }
 

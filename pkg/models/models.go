@@ -27,8 +27,20 @@ type TasksFile struct {
 }
 
 type IssueItem struct {
-	Number     int
-	Repository struct {
-		NameWithOwner string `json:"nameWithOwner"`
-	}
+	Number     int    `json:"number"`
+	Repository string `json:"repository"`
+}
+
+type Project struct {
+	Closed           bool   `json:"closed"`
+	ID               string `json:"id"`
+	Number           int    `json:"number"`
+	Title            string `json:"title"`
+	URL              string `json:"url"`
+	ShortDescription string `json:"shortDescription"`
+}
+
+type ProjectListResponse struct {
+	Projects   []Project `json:"projects"`
+	TotalCount int       `json:"totalCount"`
 }
