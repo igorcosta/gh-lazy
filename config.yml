@@ -1,0 +1,14 @@
+# Default configuration for gh-lazy
+repo: ""
+tasks_file: ""
+token_file: ".token"
+
+# GitHub API configuration
+github:
+  api_url: "https://api.github.com"
+  timeout: 30s
+
+# Logging configuration
+log:
+  level: "info"
+  format: "text"
