@@ -1,7 +1,9 @@
 package github
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/igorcosta/gh-lazy/pkg/models"
@@ -12,7 +14,13 @@ func (c *Client) CreateIssue(ctx context.Context, owner, repo string, issue mode
 	var response struct {
 		Number int `json:"number"`
 	}
-	if err := c.Post(ctx, url, issue, &response); err != nil {
+
+	payload, err := json.Marshal(issue)
+	if err != nil {
+		return 0, fmt.Errorf("failed to marshal issue: %w", err)
+	}
+
+	if err := c.Post(ctx, url, bytes.NewReader(payload), &response); err != nil {
 		return 0, fmt.Errorf("failed to create issue: %w", err)
 	}
 	return response.Number, nil
@@ -37,8 +45,14 @@ func (c *Client) UpdateIssueMilestone(ctx context.Context, owner, repo string, i
 	payload := map[string]interface{}{
 		"milestone": milestoneNumber,
 	}
+
+	jsonPayload, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("failed to marshal payload: %w", err)
+	}
+
 	var response interface{}
-	if err := c.Patch(ctx, url, payload, &response); err != nil {
+	if err := c.Patch(ctx, url, bytes.NewReader(jsonPayload), &response); err != nil {
 		return fmt.Errorf("failed to update issue milestone: %w", err)
 	}
 	return nil

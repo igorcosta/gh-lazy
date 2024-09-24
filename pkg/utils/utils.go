@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
 	"time"
 
+	"github.com/igorcosta/gh-lazy/pkg/models"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -33,39 +33,7 @@ func WrapError(err error, message string) error {
 	return errors.Wrap(err, message)
 }
 
-func checkGHCLIInstalled() error {
-	cmd := exec.Command("gh", "--version")
-	err := cmd.Run()
-	if err != nil {
-		return fmt.Errorf("gh CLI is not installed or not in PATH: %w", err)
-	}
-	return nil
-}
-
-func getToken(tokenFile string) (string, error) {
-	token, err := getGitHubCLIToken()
-	if err == nil && token != "" {
-		return token, nil
-	}
-
-	token, err = readTokenFromFile(tokenFile)
-	if err == nil && token != "" {
-		return token, nil
-	}
-
-	return "", fmt.Errorf("failed to get GitHub token: %w", err)
-}
-
-func getGitHubCLIToken() (string, error) {
-	cmd := exec.Command("gh", "auth", "token")
-	output, err := cmd.Output()
-	if err != nil {
-		return "", fmt.Errorf("failed to get GitHub CLI token: %w", err)
-	}
-	return strings.TrimSpace(string(output)), nil
-}
-
-func readTokenFromFile(filepath string) (string, error) {
+func ReadTokenFromFile(filepath string) (string, error) {
 	file, err := os.Open(filepath)
 	if err != nil {
 		return "", fmt.Errorf("opening token file: %w", err)
@@ -87,13 +55,13 @@ func readTokenFromFile(filepath string) (string, error) {
 	return "", fmt.Errorf("GH_TOKEN not found in file")
 }
 
-func loadTasksFile(filePath string) (*TasksFile, error) {
+func LoadTasksFile(filePath string) (*models.TasksFile, error) {
 	file, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("reading tasks JSON file: %w", err)
 	}
 
-	var tasksFile TasksFile
+	var tasksFile models.TasksFile
 	if err := json.Unmarshal(file, &tasksFile); err != nil {
 		return nil, fmt.Errorf("parsing tasks JSON: %w", err)
 	}
@@ -101,7 +69,7 @@ func loadTasksFile(filePath string) (*TasksFile, error) {
 	return &tasksFile, nil
 }
 
-func showProgress(progressChan <-chan string) {
+func ShowProgress(progressChan <-chan string) {
 	spinner := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
 	i := 0
 	for message := range progressChan {
@@ -112,7 +80,7 @@ func showProgress(progressChan <-chan string) {
 	fmt.Println()
 }
 
-func printWelcome(username string) {
+func PrintWelcome(username string) {
 	fmt.Printf(`
 ██╗      █████╗ ███████╗██╗   ██╗
 ██║     ██╔══██╗╚══███╔╝╚██╗ ██╔╝

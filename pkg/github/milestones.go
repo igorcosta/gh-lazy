@@ -1,7 +1,9 @@
 package github
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/igorcosta/gh-lazy/pkg/models"
@@ -12,7 +14,13 @@ func (c *Client) CreateMilestone(ctx context.Context, owner, repo string, milest
 	var response struct {
 		Number int `json:"number"`
 	}
-	if err := c.Post(ctx, url, milestone, &response); err != nil {
+
+	payload, err := json.Marshal(milestone)
+	if err != nil {
+		return 0, fmt.Errorf("failed to marshal milestone: %w", err)
+	}
+
+	if err := c.Post(ctx, url, bytes.NewReader(payload), &response); err != nil {
 		return 0, fmt.Errorf("failed to create milestone: %w", err)
 	}
 	return response.Number, nil
