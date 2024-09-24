@@ -2,19 +2,19 @@ project_name: lazy
 
 builds:
   - id: macos
-    main: ./cmd/gh-lazy
+    main: ./main.go
     goos:
       - darwin
     goarch:
       - amd64
       - arm64
     ldflags:
-      - -X github.com/igorcosta/gh-lazy/internal/version.version={{.Version}}
-      - -X github.com/igorcosta/gh-lazy/internal/version.commit={{.Commit}}
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
     env:
       - CGO_ENABLED=1
   - id: other
-    main: ./cmd/gh-lazy
+    main: ./main.go
     goos:
       - linux
       - windows
@@ -22,9 +22,23 @@ builds:
       - amd64
       - arm64
     ldflags:
-      - -X github.com/igorcosta/gh-lazy/internal/version.version={{.Version}}
-      - -X github.com/igorcosta/gh-lazy/internal/version.commit={{.Commit}}
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
 
 archives:
-  - format: binary
-    name_template: "lazy-{{.Os}}-{{.Arch}}"
+  - format: tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - LICENSE
+      - README.md
+
+checksum:
+  name_template: 'checksums.txt'
+
+release:
+  github:
+    owner: igorcosta
+    name: gh-lazy
+
+changelog:
+  sort: asc

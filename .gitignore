@@ -1,5 +1,8 @@
 /gh-lazy
 /gh-lazy.exe
+./instruct.txt
+./go.sum
+./gh-lazy
 .token
 # Binaries for programs and plugins
 *.exe
@@ -13,6 +16,7 @@
 
 # Go workspace file
 go.work
+go.sum
 
 # Dependency directories (remove the comment below if you use Go modules)
 vendor/
@@ -27,6 +31,7 @@ vendor/
 .idea/
 *.swp
 *.swo
+
 
 # Logs
 *.log
