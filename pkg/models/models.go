@@ -25,3 +25,10 @@ type TasksFile struct {
 	ProjectTitle string                `json:"projectTitle"`
 	Milestones   []MilestoneWithIssues `json:"milestones"`
 }
+
+type IssueItem struct {
+	Number     int
+	Repository struct {
+		NameWithOwner string `json:"nameWithOwner"`
+	}
+}

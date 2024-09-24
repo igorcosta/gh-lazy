@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 	"time"
 
@@ -115,6 +116,20 @@ For more information, visit: https://github.com/igorcosta/gh-lazy
 `)
 }
 
+func ParseProjectID(input string) (string, error) {
+	// If the input is a URL, extract the project number
+	if strings.HasPrefix(input, "http") {
+		// Match patterns like /projects/1 or /projects/1/
+		re := regexp.MustCompile(`/projects/(\d+)/?$`)
+		matches := re.FindStringSubmatch(input)
+		if len(matches) < 2 {
+			return "", fmt.Errorf("invalid project URL")
+		}
+		return matches[1], nil
+	}
+	// Otherwise, assume it's a project number
+	return input, nil
+}
 func GetGitHubCLIToken() (string, error) {
 	cmd := exec.Command("gh", "auth", "token")
 	output, err := cmd.Output()

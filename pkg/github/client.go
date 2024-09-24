@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os/exec"
 
 	"github.com/cli/go-gh/v2/pkg/api"
 )
@@ -32,6 +33,15 @@ func (c *Client) Post(ctx context.Context, path string, body io.Reader, response
 
 func (c *Client) Patch(ctx context.Context, path string, body io.Reader, response interface{}) error {
 	return c.client.Patch(path, body, response)
+}
+
+func (c *Client) GetProjectOwner(ctx context.Context, projectNumber string) (string, error) {
+	cmd := exec.CommandContext(ctx, "gh", "project", "view", projectNumber, "--json", "owner", "--jq", ".owner.login")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to get project owner: %w", err)
+	}
+	return string(output), nil
 }
 
 func (c *Client) GetUsername() (string, error) {

@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os/exec"
 
 	"github.com/igorcosta/gh-lazy/pkg/models"
 )
@@ -54,6 +55,14 @@ func (c *Client) UpdateIssueMilestone(ctx context.Context, owner, repo string, i
 	var response interface{}
 	if err := c.Patch(ctx, url, bytes.NewReader(jsonPayload), &response); err != nil {
 		return fmt.Errorf("failed to update issue milestone: %w", err)
+	}
+	return nil
+}
+func (c *Client) DeleteIssue(ctx context.Context, repo string, issueNumber int) error {
+	cmd := exec.CommandContext(ctx, "gh", "issue", "delete", fmt.Sprintf("%d", issueNumber), "--repo", repo, "--confirm")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to delete issue #%d: %s", issueNumber, string(output))
 	}
 	return nil
 }
