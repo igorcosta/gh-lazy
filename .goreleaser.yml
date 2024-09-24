@@ -1,0 +1,30 @@
+project_name: lazy
+
+builds:
+  - id: macos
+    main: ./cmd/gh-lazy
+    goos:
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -X github.com/igorcosta/gh-lazy/internal/version.version={{.Version}}
+      - -X github.com/igorcosta/gh-lazy/internal/version.commit={{.Commit}}
+    env:
+      - CGO_ENABLED=1
+  - id: other
+    main: ./cmd/gh-lazy
+    goos:
+      - linux
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -X github.com/igorcosta/gh-lazy/internal/version.version={{.Version}}
+      - -X github.com/igorcosta/gh-lazy/internal/version.commit={{.Commit}}
+
+archives:
+  - format: binary
+    name_template: "lazy-{{.Os}}-{{.Arch}}"

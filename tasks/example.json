@@ -1,0 +1,20 @@
+{
+    "projectTitle": "Example GitHub Project",
+    "milestones": [
+      {
+        "title": "Initial Setup",
+        "description": "Set up the initial project structure and CI/CD",
+        "due_on": "2024-12-31T23:59:59Z",
+        "issues": [
+          {
+            "title": "Configure project repository",
+            "body": "Set up the initial project repository with README, .gitignore, and basic folder structure."
+          },
+          {
+            "title": "Set up CI/CD pipeline",
+            "body": "Implement a basic CI/CD pipeline using GitHub Actions for automated testing and deployment."
+          }
+        ]
+      }
+    ]
+  }

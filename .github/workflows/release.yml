@@ -1,19 +1,84 @@
-name: release
+name: Build and Release
+
 on:
   push:
+    branches:
+      - main
     tags:
-      - "v*"
-permissions:
-  contents: write
-  id-token: write
-  attestations: write
+      - 'v*.*.*'
+  workflow_dispatch:
 
 jobs:
-  release:
+  build:
+    name: Build Binary
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go-version: [1.17, 1.18, 1.19]
+        os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
-      - uses: actions/checkout@v4
-      - uses: cli/gh-extension-precompile@v1
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go ${{ matrix.go-version }}
+        uses: actions/setup-go@v4
         with:
-          generate_attestations: true
-          go_version_file: go.mod
+          go-version: ${{ matrix.go-version }}
+
+      - name: Build
+        run: |
+          go build -v -o bin/your-extension
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ runner.os }}-binary
+          path: bin/
+
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.18'
+
+      - name: Install GoReleaser
+        run: |
+          curl -sL https://git.io/goreleaser | bash
+
+      - name: Run GoReleaser
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          goreleaser release --rm-dist
+
+  bump_version:
+    name: Bump Version
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Bump version
+        id: bump
+        uses: anothrNick/github-tag-action@v1.37.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          tag_prefix: 'v'
+
+      - name: Push changes
+        run: |
+          git push origin --tags

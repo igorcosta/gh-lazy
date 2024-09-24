@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/igorcosta/gh-lazy/pkg/models"
 )
@@ -15,7 +16,13 @@ func (c *Client) CreateMilestone(ctx context.Context, owner, repo string, milest
 		Number int `json:"number"`
 	}
 
-	payload, err := json.Marshal(milestone)
+	// Convert the time.Time to the correct string format
+	milestoneCopy := milestone
+	if !milestone.DueOn.IsZero() {
+		milestoneCopy.DueOn = milestone.DueOn.UTC().Truncate(time.Second)
+	}
+
+	payload, err := json.Marshal(milestoneCopy)
 	if err != nil {
 		return 0, fmt.Errorf("failed to marshal milestone: %w", err)
 	}

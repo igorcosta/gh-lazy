@@ -146,8 +146,7 @@ func GetToken(tokenFile string) (string, error) {
 }
 
 func PrintUserGuide() {
-	fmt.Println(`
-To use gh lazy, please ensure you have:
+	fmt.Println(`To use gh lazy, please ensure you have:
 1. Authenticated with GitHub CLI using 'gh auth login', or
 2. Provided a token file using the -f or --token-file flag
 
@@ -155,6 +154,5 @@ Usage examples:
   gh lazy create -r username/repo -t tasks.json
   gh lazy create -r username/repo -t tasks.json -f /path/to/token/file
 
-For more information, run: gh lazy --help
-`)
+For more information, run: gh lazy --help`)
 }
