@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -15,6 +16,15 @@ import (
 	"github.com/spf13/cobra"
 )
 
+func getCurrentRepo() (string, error) {
+	cmd := exec.Command("gh", "repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to get current repository: %w", err)
+	}
+	return strings.TrimSpace(string(output)), nil
+}
+
 var nukeCmd = &cobra.Command{
 	Use:   "nuke",
 	Short: "Delete a GitHub project and optionally all linked issues",
@@ -22,18 +32,21 @@ var nukeCmd = &cobra.Command{
 
 **Warning:** This operation is irreversible. Use with caution.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		// Load configuration
 		cfg, err := config.LoadConfig()
 		if err != nil {
 			return fmt.Errorf("failed to load config: %w", err)
 		}
 
-		// Parse flags
 		projectIDOrURL, _ := cmd.Flags().GetString("projectid")
 		deleteAll, _ := cmd.Flags().GetBool("all")
 		dryRun, _ := cmd.Flags().GetBool("dry-run")
 
-		// Create GitHub client using the token from config
+		repoName, err := getCurrentRepo()
+		if err != nil {
+			return fmt.Errorf("failed to get current repository: %w", err)
+		}
+		fmt.Printf("Current repository: %s\n", repoName)
+
 		token, err := utils.GetToken(cfg.TokenFile)
 		if err != nil {
 			utils.PrintUserGuide()
@@ -48,7 +61,6 @@ var nukeCmd = &cobra.Command{
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 		defer cancel()
 
-		// If no project ID is provided, list projects and allow user to select
 		if projectIDOrURL == "" {
 			projects, err := client.ListUserProjects(ctx)
 			if err != nil {
@@ -60,10 +72,9 @@ var nukeCmd = &cobra.Command{
 				return nil
 			}
 
-			// Prompt user to select a project
-			projectNames := []string{}
-			for _, p := range projects {
-				projectNames = append(projectNames, fmt.Sprintf("%s (ID: %d)", p.Title, p.Number))
+			projectNames := make([]string, len(projects))
+			for i, p := range projects {
+				projectNames[i] = fmt.Sprintf("%s (ID: %d)", p.Title, p.Number)
 			}
 
 			prompt := promptui.Select{
@@ -80,12 +91,10 @@ var nukeCmd = &cobra.Command{
 			projectIDOrURL = fmt.Sprintf("%d", selectedProject.Number)
 			fmt.Printf("Selected project: %s\n", selectedProject.Title)
 
-			// Confirm deletion if not in dry-run mode
-			if !cmd.Flags().Changed("dry-run") && !dryRun {
+			if !dryRun {
 				confirmPrompt := promptui.Prompt{
 					Label:     fmt.Sprintf("Are you sure you want to delete project '%s' and all linked issues?", selectedProject.Title),
 					IsConfirm: true,
-					Default:   "n",
 				}
 				result, err := confirmPrompt.Run()
 				if err != nil || strings.ToLower(result) != "y" {
@@ -94,31 +103,25 @@ var nukeCmd = &cobra.Command{
 				}
 			}
 
-			// Ask if the user wants to delete all associated issues
 			if !cmd.Flags().Changed("all") {
-				if !dryRun {
-					deleteAllPrompt := promptui.Prompt{
-						Label:     "Do you want to delete all issues associated with the project? (y/N)",
-						IsConfirm: true,
-						Default:   "n",
-					}
-					result, err := deleteAllPrompt.Run()
-					if err != nil {
-						deleteAll = false
-					} else {
-						deleteAll = (strings.ToLower(result) == "y")
-					}
+				deleteAllPrompt := promptui.Prompt{
+					Label:     "Do you want to delete all issues associated with the project?",
+					IsConfirm: true,
+				}
+				result, err := deleteAllPrompt.Run()
+				if err != nil {
+					deleteAll = false
+				} else {
+					deleteAll = strings.ToLower(result) == "y"
 				}
 			}
 		}
 
-		// Extract project number
 		projectNumber, err := utils.ParseProjectID(projectIDOrURL)
 		if err != nil {
 			return fmt.Errorf("failed to parse project ID: %w", err)
 		}
 
-		// Fetch issues linked to the project
 		issues, err := client.ListProjectIssues(ctx, projectNumber)
 		if err != nil {
 			return fmt.Errorf("failed to list issues linked to the project: %w", err)
@@ -129,7 +132,6 @@ var nukeCmd = &cobra.Command{
 			totalTasks += len(issues)
 		}
 
-		// Set up the progress bar
 		bar := progressbar.NewOptions(totalTasks,
 			progressbar.OptionEnableColorCodes(true),
 			progressbar.OptionShowCount(),
@@ -151,13 +153,16 @@ var nukeCmd = &cobra.Command{
 
 		failed := 0
 		deleted := 0
+		skipped := 0
 
-		// Delete issues if --all is set
 		if deleteAll {
+			color.Cyan("Deleting issues associated with the project:")
 			for _, issue := range issues {
 				if dryRun {
-					color.Cyan("🗒️ Would delete issue #%d: %s", issue.Number, issue.Title)
+					color.Cyan("🗒️ Would delete issue #%d: %s (Repository: %s)", issue.Number, issue.Title, issue.Repository)
+					bar.Add(1)
 				} else {
+					fmt.Printf("Deleting issue #%d: %s (Repository: %s)\n", issue.Number, issue.Title, issue.Repository)
 					err := client.DeleteIssue(ctx, issue.Repository, issue.Number)
 					if err != nil {
 						color.Red("❌ Failed to delete issue #%d: %v", issue.Number, err)
@@ -166,21 +171,22 @@ var nukeCmd = &cobra.Command{
 						color.Green("🗑️ Deleted issue #%d: %s", issue.Number, issue.Title)
 						deleted++
 					}
+					bar.Add(1)
 				}
-				bar.Add(1)
+				time.Sleep(time.Second) // Small delay to avoid overwhelming the API
 			}
-		} else if dryRun && len(issues) > 0 {
-			color.Cyan("Issues linked to the project that would not be deleted:")
-			for _, issue := range issues {
-				color.Cyan("  - Issue #%d: %s", issue.Number, issue.Title)
+		} else {
+			skipped = len(issues)
+			if skipped > 0 {
+				color.Yellow("Skipping deletion of %d issues", skipped)
 			}
 		}
 
-		// Delete the project
 		if dryRun {
 			color.Cyan("🗒️ Would delete project %s", projectNumber)
 			bar.Add(1)
 		} else {
+			fmt.Printf("Deleting project %s\n", projectNumber)
 			err = client.DeleteProject(ctx, projectNumber)
 			if err != nil {
 				color.Red("❌ Failed to delete project: %v", err)
@@ -194,22 +200,23 @@ var nukeCmd = &cobra.Command{
 		bar.Finish()
 		fmt.Println()
 
-		// Summary
 		color.Green("📊 Summary:")
 		if deleteAll {
 			if dryRun {
 				color.Green("  🗒️ Issues that would be deleted: %d", len(issues))
 			} else {
 				color.Green("  🗑️ Deleted issues: %d", deleted)
+				if failed > 0 {
+					color.Red("  ❌ Failed deletions: %d", failed)
+				}
 			}
+		} else {
+			color.Yellow("  ⏭️ Skipped issues: %d", skipped)
 		}
 		if dryRun {
 			color.Green("  🗒️ Project that would be deleted: %s", projectNumber)
 		} else {
 			color.Green("  🗑️ Deleted project: %s", projectNumber)
-		}
-		if failed > 0 {
-			color.Red("  ❌ Failed deletions: %d", failed)
 		}
 
 		return nil

@@ -73,7 +73,6 @@ func (c *Client) ListUserProjects(ctx context.Context) ([]models.Project, error)
 
 	return result.Projects, nil
 }
-
 func (c *Client) ListProjectIssues(ctx context.Context, projectNumber string) ([]models.IssueItem, error) {
 	owner, err := c.GetUsername()
 	if err != nil {
@@ -86,34 +85,53 @@ func (c *Client) ListProjectIssues(ctx context.Context, projectNumber string) ([
 		return nil, fmt.Errorf("failed to list project items: %s - %w", string(output), err)
 	}
 
-	var result struct {
-		Items []struct {
-			Content struct {
-				TypeName   string `json:"__typename"`
-				Number     int    `json:"number"`
-				Repository string `json:"repository"`
-			} `json:"content"`
-		} `json:"items"`
-	}
-
+	var result map[string]interface{}
 	if err := json.Unmarshal(output, &result); err != nil {
 		return nil, fmt.Errorf("failed to parse project items: %w", err)
 	}
 
+	items, ok := result["items"].([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("unexpected JSON structure: 'items' is not an array")
+	}
+
 	var issues []models.IssueItem
-	for _, item := range result.Items {
-		if item.Content.TypeName == "Issue" {
-			// Fetch issue title
-			title, err := c.GetIssueTitle(ctx, item.Content.Repository, item.Content.Number)
-			if err != nil {
-				return nil, fmt.Errorf("failed to get title for issue #%d: %w", item.Content.Number, err)
-			}
-			issues = append(issues, models.IssueItem{
-				Number:     item.Content.Number,
-				Repository: item.Content.Repository,
-				Title:      title,
-			})
+	for _, item := range items {
+		itemMap, ok := item.(map[string]interface{})
+		if !ok {
+			continue
 		}
+
+		content, ok := itemMap["content"].(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		if content["type"] != "Issue" {
+			continue
+		}
+
+		number, _ := content["number"].(float64)
+		title, _ := content["title"].(string)
+
+		var repoFullName string
+		if repo, ok := content["repository"].(map[string]interface{}); ok {
+			repoName, _ := repo["name"].(string)
+			if owner, ok := repo["owner"].(map[string]interface{}); ok {
+				ownerLogin, _ := owner["login"].(string)
+				repoFullName = fmt.Sprintf("%s/%s", ownerLogin, repoName)
+			}
+		}
+
+		if repoFullName == "" || number == 0 {
+			continue
+		}
+
+		issues = append(issues, models.IssueItem{
+			Number:     int(number),
+			Title:      title,
+			Repository: repoFullName,
+		})
 	}
 
 	return issues, nil
@@ -142,19 +160,17 @@ func (c *Client) DeleteProject(ctx context.Context, projectNumber string) error 
 	return nil
 }
 
-func (c *Client) LinkProjectToRepo(ctx context.Context, repo, projectNumber string) error {
-	owner, err := c.GetUsername()
-	if err != nil {
-		return fmt.Errorf("failed to get GitHub username: %w", err)
+func (c *Client) LinkProjectToRepo(ctx context.Context, projectNumber, repoFullName string) error {
+	parts := strings.Split(repoFullName, "/")
+	if len(parts) != 2 {
+		return fmt.Errorf("invalid repository format: %s", repoFullName)
 	}
+	owner, repo := parts[0], parts[1]
 
-	cmd := exec.CommandContext(ctx, "gh", "project", "link", projectNumber,
-		"--owner", owner, "--repo", fmt.Sprintf("%s/%s", owner, repo))
-
+	cmd := exec.CommandContext(ctx, "gh", "project", "link", projectNumber, "--owner", owner, "--repo", repo)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("failed to link project to repository: %s - %w", string(output), err)
 	}
-
 	return nil
 }

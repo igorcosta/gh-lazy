@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os/exec"
+	"strings"
 
 	"github.com/igorcosta/gh-lazy/pkg/models"
 )
@@ -68,9 +69,14 @@ func (c *Client) CloseIssue(ctx context.Context, repo string, issueNumber int) e
 	return nil
 }
 
-// Updated DeleteIssue to use --yes flag and handle issue titles
 func (c *Client) DeleteIssue(ctx context.Context, repo string, issueNumber int) error {
-	cmd := exec.CommandContext(ctx, "gh", "issue", "delete", fmt.Sprintf("%d", issueNumber), "--repo", repo, "--yes")
+	parts := strings.Split(repo, "/")
+	if len(parts) != 2 {
+		return fmt.Errorf("invalid repository format: %s", repo)
+	}
+	owner, repoName := parts[0], parts[1]
+
+	cmd := exec.CommandContext(ctx, "gh", "issue", "delete", fmt.Sprintf("%d", issueNumber), "--repo", fmt.Sprintf("%s/%s", owner, repoName), "--yes")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("failed to delete issue #%d: %s - %w", issueNumber, string(output), err)

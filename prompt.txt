@@ -1,0 +1,1530 @@
+./config.yml
+---
+# Default configuration for gh-lazy
+repo: ""
+tasks_file: ""
+token_file: ".token"
+
+# GitHub API configuration
+github:
+  api_url: "https://api.github.com"
+  timeout: 30s
+
+# Logging configuration
+log:
+  level: "info"
+  format: "text"
+
+---
+./go.mod
+---
+module github.com/igorcosta/gh-lazy
+
+go 1.22.3
+
+require (
+	github.com/cli/go-gh/v2 v2.10.0
+	github.com/fatih/color v1.17.0
+	github.com/manifoldco/promptui v0.9.0
+	github.com/pkg/errors v0.9.1
+	github.com/schollz/progressbar/v3 v3.16.0
+	github.com/sirupsen/logrus v1.9.3
+	github.com/spf13/cobra v1.8.1
+	github.com/spf13/viper v1.19.0
+)
+
+require (
+	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
+	github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e // indirect
+	github.com/cli/safeexec v1.0.0 // indirect
+	github.com/cli/shurcooL-graphql v0.0.4 // indirect
+	github.com/fsnotify/fsnotify v1.7.0 // indirect
+	github.com/hashicorp/hcl v1.0.0 // indirect
+	github.com/henvic/httpretty v0.0.6 // indirect
+	github.com/inconshreveable/mousetrap v1.1.0 // indirect
+	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
+	github.com/magiconair/properties v1.8.7 // indirect
+	github.com/mattn/go-colorable v0.1.13 // indirect
+	github.com/mattn/go-isatty v0.0.20 // indirect
+	github.com/mattn/go-runewidth v0.0.16 // indirect
+	github.com/mitchellh/colorstring v0.0.0-20190213212951-d06e56a500db // indirect
+	github.com/mitchellh/mapstructure v1.5.0 // indirect
+	github.com/muesli/termenv v0.15.2 // indirect
+	github.com/pelletier/go-toml/v2 v2.2.2 // indirect
+	github.com/rivo/uniseg v0.4.7 // indirect
+	github.com/sagikazarmark/locafero v0.4.0 // indirect
+	github.com/sagikazarmark/slog-shim v0.1.0 // indirect
+	github.com/sourcegraph/conc v0.3.0 // indirect
+	github.com/spf13/afero v1.11.0 // indirect
+	github.com/spf13/cast v1.6.0 // indirect
+	github.com/spf13/pflag v1.0.5 // indirect
+	github.com/subosito/gotenv v1.6.0 // indirect
+	github.com/thlib/go-timezone-local v0.0.0-20210907160436-ef149e42d28e // indirect
+	go.uber.org/atomic v1.9.0 // indirect
+	go.uber.org/multierr v1.9.0 // indirect
+	golang.org/x/exp v0.0.0-20230905200255-921286631fa9 // indirect
+	golang.org/x/sys v0.25.0 // indirect
+	golang.org/x/term v0.24.0 // indirect
+	golang.org/x/text v0.14.0 // indirect
+	gopkg.in/ini.v1 v1.67.0 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
+)
+
+
+---
+./main.go
+---
+package main
+
+import (
+	"fmt"
+	"os"
+
+	"github.com/igorcosta/gh-lazy/cmd"
+	"github.com/igorcosta/gh-lazy/pkg/utils"
+)
+
+var (
+	version = "dev"
+	commit  = "none"
+)
+
+func main() {
+	if err := cmd.Execute(); err != nil {
+		utils.LogError(err, "Command execution failed")
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+	if len(os.Args) > 1 && os.Args[1] == "--version" {
+		fmt.Printf("Version: %s, Commit: %s\n", version, commit)
+		return
+	}
+}
+
+
+---
+./prompt.txt
+---
+
+
+---
+./cmd/create.go
+---
+package cmd
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+
+	"github.com/fatih/color"
+	"github.com/igorcosta/gh-lazy/pkg/config"
+	"github.com/igorcosta/gh-lazy/pkg/github"
+	"github.com/igorcosta/gh-lazy/pkg/models"
+	"github.com/igorcosta/gh-lazy/pkg/utils"
+	"github.com/schollz/progressbar/v3"
+	"github.com/spf13/cobra"
+)
+
+var createCmd = &cobra.Command{
+	Use:   "create",
+	Short: "Create project, milestones, and issues",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		cfg, err := config.LoadConfig()
+		if err != nil {
+			return fmt.Errorf("failed to load config: %w", err)
+		}
+
+		// Get the repository name from the flag
+		repoName, err := cmd.Flags().GetString("repo")
+		if err != nil {
+			return fmt.Errorf("failed to get repository name: %w", err)
+		}
+
+		// Check if the repository name is provided
+		if repoName == "" {
+			return fmt.Errorf("repository name is required. Use -r or --repo flag to specify the name")
+		}
+
+		// Get the tasks file path from the flag
+		tasksFile, err := cmd.Flags().GetString("tasks")
+		if err != nil {
+			return fmt.Errorf("failed to get tasks file path: %w", err)
+		}
+
+		// Check if the tasks file path is provided
+		if tasksFile == "" {
+			return fmt.Errorf("tasks file path is required. Use -t or --tasks flag to specify the path")
+		}
+
+		// Check if the file exists
+		if _, err := os.Stat(tasksFile); os.IsNotExist(err) {
+			return fmt.Errorf("tasks file does not exist: %s", tasksFile)
+		}
+
+		// Get the absolute path of the tasks file
+		absTasksFile, err := filepath.Abs(tasksFile)
+		if err != nil {
+			return fmt.Errorf("failed to get absolute path of tasks file: %w", err)
+		}
+
+		token, err := utils.GetToken(cfg.TokenFile)
+		if err != nil {
+			utils.PrintUserGuide()
+			return fmt.Errorf("authentication error: %w", err)
+		}
+
+		client, err := github.NewClient(token)
+		if err != nil {
+			return fmt.Errorf("failed to create GitHub client: %w", err)
+		}
+
+		tasks, err := utils.LoadTasksFile(absTasksFile)
+		if err != nil {
+			return fmt.Errorf("failed to load tasks file: %w", err)
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+		defer cancel()
+
+		owner, repo, err := splitRepoName(repoName)
+		if err != nil {
+			return fmt.Errorf("invalid repository name: %w", err)
+		}
+
+		totalTasks := len(tasks.Milestones) + 1 // +1 for project creation
+		for _, m := range tasks.Milestones {
+			totalTasks += len(m.Issues)
+		}
+
+		bar := progressbar.NewOptions(totalTasks,
+			progressbar.OptionEnableColorCodes(true),
+			progressbar.OptionShowCount(),
+			progressbar.OptionSetWidth(15),
+			progressbar.OptionSetDescription("[cyan][1/3][reset] Creating project, milestones, and issues..."),
+			progressbar.OptionSetTheme(progressbar.Theme{
+				Saucer:        "[green]=[reset]",
+				SaucerHead:    "[green]>[reset]",
+				SaucerPadding: " ",
+				BarStart:      "[",
+				BarEnd:        "]",
+			}))
+
+		completed := 0
+		skipped := 0
+		failed := 0
+		createdIssues := []string{}
+
+		projectURL, err := client.CreateProject(ctx, tasks.ProjectTitle)
+		if err != nil {
+			return fmt.Errorf("failed to create project: %w", err)
+		}
+		bar.Add(1)
+		completed++
+
+		for _, milestone := range tasks.Milestones {
+			milestoneNumber, err := createOrGetMilestone(ctx, client, owner, repo, milestone)
+			if err != nil {
+				color.Red("❌ Failed to create/get milestone %s: %v", milestone.Title, err)
+				failed++
+				bar.Add(1)
+				continue
+			}
+			bar.Add(1)
+			completed++
+
+			for _, issue := range milestone.Issues {
+				issueNumber, err := createOrGetIssue(ctx, client, owner, repo, issue)
+				if err != nil {
+					color.Red("❌ Failed to create/get issue %s: %v", issue.Title, err)
+					failed++
+					bar.Add(1)
+					continue
+				}
+
+				err = client.UpdateIssueMilestone(ctx, owner, repo, issueNumber, milestoneNumber)
+				if err != nil {
+					color.Yellow("⚠️ Failed to associate issue #%d with milestone #%d: %v", issueNumber, milestoneNumber, err)
+					skipped++
+				}
+
+				issueURL := fmt.Sprintf("https://github.com/%s/%s/issues/%d", owner, repo, issueNumber)
+				err = client.AddIssueToProject(ctx, projectURL, issueURL)
+				if err != nil {
+					color.Yellow("⚠️ Failed to add issue #%d to project: %v", issueNumber, err)
+					skipped++
+				}
+
+				createdIssues = append(createdIssues, issueURL)
+				bar.Add(1)
+				completed++
+			}
+		}
+
+		bar.Finish()
+		fmt.Println()
+
+		color.Green("✅ Project created successfully: %s", projectURL)
+		fmt.Println("Created issues:")
+		for _, issueURL := range createdIssues {
+			color.Cyan("  • %s", issueURL)
+		}
+
+		fmt.Println()
+		color.Green("📊 Summary:")
+		color.Green("  ✅ Completed tasks: %d", completed)
+		color.Yellow("  ⚠️ Skipped tasks: %d", skipped)
+		color.Red("  ❌ Failed tasks: %d", failed)
+		color.Cyan("  🔗 Project URL: %s", projectURL)
+
+		return nil
+	},
+}
+
+func init() {
+	rootCmd.AddCommand(createCmd)
+	createCmd.Flags().StringP("repo", "r", "", "The repository name (e.g., 'username/repo')")
+	createCmd.Flags().StringP("tasks", "t", "", "Path to the tasks JSON file")
+	createCmd.MarkFlagRequired("repo")
+	createCmd.MarkFlagRequired("tasks")
+}
+
+func createOrGetMilestone(ctx context.Context, client *github.Client, owner, repo string, milestoneWithIssues models.MilestoneWithIssues) (int, error) {
+	existingMilestone, err := client.GetMilestoneByTitle(ctx, owner, repo, milestoneWithIssues.Title)
+	if err != nil {
+		return 0, fmt.Errorf("checking existing milestone: %w", err)
+	}
+	if existingMilestone != nil {
+		return existingMilestone.Number, nil
+	}
+
+	number, err := client.CreateMilestone(ctx, owner, repo, milestoneWithIssues.Milestone)
+	if err != nil {
+		return 0, fmt.Errorf("creating milestone: %w", err)
+	}
+	return number, nil
+}
+
+func createOrGetIssue(ctx context.Context, client *github.Client, owner, repo string, issue models.Issue) (int, error) {
+	existingIssue, err := client.GetIssueByTitle(ctx, owner, repo, issue.Title)
+	if err != nil {
+		return 0, fmt.Errorf("checking existing issue: %w", err)
+	}
+	if existingIssue != nil {
+		return existingIssue.Number, nil
+	}
+
+	number, err := client.CreateIssue(ctx, owner, repo, issue)
+	if err != nil {
+		return 0, fmt.Errorf("creating issue: %w", err)
+	}
+	return number, nil
+}
+
+func splitRepoName(repoName string) (string, string, error) {
+	parts := strings.Split(repoName, "/")
+	if len(parts) != 2 {
+		return "", "", fmt.Errorf("invalid repository name format. Expected 'owner/repo', got '%s'", repoName)
+	}
+	return parts[0], parts[1], nil
+}
+
+
+---
+./cmd/link.go
+---
+package cmd
+
+import (
+	"context"
+	"fmt"
+	"time"
+
+	"github.com/igorcosta/gh-lazy/pkg/config"
+	"github.com/igorcosta/gh-lazy/pkg/github"
+	"github.com/igorcosta/gh-lazy/pkg/utils"
+	"github.com/spf13/cobra"
+)
+
+var linkCmd = &cobra.Command{
+	Use:   "link",
+	Short: "Link project to repository",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		cfg, err := config.LoadConfig()
+		if err != nil {
+			return utils.WrapError(err, "failed to load config")
+		}
+
+		token, err := utils.ReadTokenFromFile(cfg.TokenFile)
+		if err != nil {
+			return utils.WrapError(err, "failed to read token")
+		}
+
+		client, err := github.NewClient(token)
+		if err != nil {
+			return utils.WrapError(err, "failed to create GitHub client")
+		}
+
+		projectNumber, err := cmd.Flags().GetString("project")
+		if err != nil {
+			return utils.WrapError(err, "failed to get project number")
+		}
+
+		repoName, err := cmd.Flags().GetString("repo")
+		if err != nil {
+			return utils.WrapError(err, "failed to get repository name")
+		}
+
+		if repoName == "" {
+			return fmt.Errorf("repository name is required. Use -r or --repo flag to specify the name")
+		}
+
+		_, repo, err := splitRepoName(repoName)
+		if err != nil {
+			return utils.WrapError(err, "invalid repository name")
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+		defer cancel()
+
+		err = client.LinkProjectToRepo(ctx, repo, projectNumber)
+		if err != nil {
+			return utils.WrapError(err, "failed to link project to repository")
+		}
+
+		utils.LogInfo(fmt.Sprintf("Successfully linked project %s to repository %s", projectNumber, repoName))
+		return nil
+	},
+}
+
+func init() {
+	rootCmd.AddCommand(linkCmd)
+	linkCmd.Flags().StringP("project", "p", "", "Project number to link")
+	linkCmd.Flags().StringP("repo", "r", "", "The repository name (e.g., 'username/repo')")
+	linkCmd.MarkFlagRequired("project")
+	linkCmd.MarkFlagRequired("repo")
+}
+
+
+---
+./cmd/nuke.go
+---
+package cmd
+
+import (
+	"context"
+	"fmt"
+	"strings"
+	"time"
+
+	"github.com/fatih/color"
+	"github.com/igorcosta/gh-lazy/pkg/config"
+	"github.com/igorcosta/gh-lazy/pkg/github"
+	"github.com/igorcosta/gh-lazy/pkg/utils"
+	"github.com/manifoldco/promptui"
+	"github.com/schollz/progressbar/v3"
+	"github.com/spf13/cobra"
+)
+
+var nukeCmd = &cobra.Command{
+	Use:   "nuke",
+	Short: "Delete a GitHub project and optionally all linked issues",
+	Long: `Delete a GitHub project and optionally all issues linked to it.
+
+**Warning:** This operation is irreversible. Use with caution.`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		// Load configuration
+		cfg, err := config.LoadConfig()
+		if err != nil {
+			return fmt.Errorf("failed to load config: %w", err)
+		}
+
+		// Parse flags
+		projectIDOrURL, _ := cmd.Flags().GetString("projectid")
+		deleteAll, _ := cmd.Flags().GetBool("all")
+		dryRun, _ := cmd.Flags().GetBool("dry-run")
+
+		// Create GitHub client using the token from config
+		token, err := utils.GetToken(cfg.TokenFile)
+		if err != nil {
+			utils.PrintUserGuide()
+			return fmt.Errorf("authentication error: %w", err)
+		}
+
+		client, err := github.NewClient(token)
+		if err != nil {
+			return fmt.Errorf("failed to create GitHub client: %w", err)
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+		defer cancel()
+
+		// If no project ID is provided, list projects and allow user to select
+		if projectIDOrURL == "" {
+			projects, err := client.ListUserProjects(ctx)
+			if err != nil {
+				return fmt.Errorf("failed to list projects: %w", err)
+			}
+
+			if len(projects) == 0 {
+				fmt.Println("No projects found.")
+				return nil
+			}
+
+			// Prompt user to select a project
+			projectNames := []string{}
+			for _, p := range projects {
+				projectNames = append(projectNames, fmt.Sprintf("%s (ID: %d)", p.Title, p.Number))
+			}
+
+			prompt := promptui.Select{
+				Label: "Select a project to nuke",
+				Items: projectNames,
+			}
+
+			index, _, err := prompt.Run()
+			if err != nil {
+				return fmt.Errorf("prompt failed: %w", err)
+			}
+
+			selectedProject := projects[index]
+			projectIDOrURL = fmt.Sprintf("%d", selectedProject.Number)
+			fmt.Printf("Selected project: %s\n", selectedProject.Title)
+
+			// Confirm deletion if not in dry-run mode
+			if !cmd.Flags().Changed("dry-run") && !dryRun {
+				confirmPrompt := promptui.Prompt{
+					Label:     fmt.Sprintf("Are you sure you want to delete project '%s' and all linked issues?", selectedProject.Title),
+					IsConfirm: true,
+					Default:   "n",
+				}
+				result, err := confirmPrompt.Run()
+				if err != nil || strings.ToLower(result) != "y" {
+					fmt.Println("Operation cancelled.")
+					return nil
+				}
+			}
+
+			// Ask if the user wants to delete all associated issues
+			if !cmd.Flags().Changed("all") {
+				if !dryRun {
+					deleteAllPrompt := promptui.Prompt{
+						Label:     "Do you want to delete all issues associated with the project? (y/N)",
+						IsConfirm: true,
+						Default:   "n",
+					}
+					result, err := deleteAllPrompt.Run()
+					if err != nil {
+						deleteAll = false
+					} else {
+						deleteAll = (strings.ToLower(result) == "y")
+					}
+				}
+			}
+		}
+
+		// Extract project number
+		projectNumber, err := utils.ParseProjectID(projectIDOrURL)
+		if err != nil {
+			return fmt.Errorf("failed to parse project ID: %w", err)
+		}
+
+		// Fetch issues linked to the project
+		issues, err := client.ListProjectIssues(ctx, projectNumber)
+		if err != nil {
+			return fmt.Errorf("failed to list issues linked to the project: %w", err)
+		}
+
+		totalTasks := 1 // For deleting the project
+		if deleteAll {
+			totalTasks += len(issues)
+		}
+
+		// Set up the progress bar
+		bar := progressbar.NewOptions(totalTasks,
+			progressbar.OptionEnableColorCodes(true),
+			progressbar.OptionShowCount(),
+			progressbar.OptionSetWidth(15),
+			progressbar.OptionSetDescription("[cyan][1/2][reset] Processing..."),
+			progressbar.OptionSetTheme(progressbar.Theme{
+				Saucer:        "[green]=[reset]",
+				SaucerHead:    "[green]>[reset]",
+				SaucerPadding: " ",
+				BarStart:      "[",
+				BarEnd:        "]",
+			}))
+
+		if dryRun {
+			color.Yellow("** Dry Run Mode Enabled **")
+			color.Yellow("No actual deletions will occur.")
+			fmt.Println()
+		}
+
+		failed := 0
+		deleted := 0
+
+		// Delete issues if --all is set
+		if deleteAll {
+			for _, issue := range issues {
+				if dryRun {
+					color.Cyan("🗒️ Would delete issue #%d: %s", issue.Number, issue.Title)
+				} else {
+					err := client.DeleteIssue(ctx, issue.Repository, issue.Number)
+					if err != nil {
+						color.Red("❌ Failed to delete issue #%d: %v", issue.Number, err)
+						failed++
+					} else {
+						color.Green("🗑️ Deleted issue #%d: %s", issue.Number, issue.Title)
+						deleted++
+					}
+				}
+				bar.Add(1)
+			}
+		} else if dryRun && len(issues) > 0 {
+			color.Cyan("Issues linked to the project that would not be deleted:")
+			for _, issue := range issues {
+				color.Cyan("  - Issue #%d: %s", issue.Number, issue.Title)
+			}
+		}
+
+		// Delete the project
+		if dryRun {
+			color.Cyan("🗒️ Would delete project %s", projectNumber)
+			bar.Add(1)
+		} else {
+			err = client.DeleteProject(ctx, projectNumber)
+			if err != nil {
+				color.Red("❌ Failed to delete project: %v", err)
+				failed++
+			} else {
+				bar.Add(1)
+				color.Green("✅ Project deleted successfully")
+			}
+		}
+
+		bar.Finish()
+		fmt.Println()
+
+		// Summary
+		color.Green("📊 Summary:")
+		if deleteAll {
+			if dryRun {
+				color.Green("  🗒️ Issues that would be deleted: %d", len(issues))
+			} else {
+				color.Green("  🗑️ Deleted issues: %d", deleted)
+			}
+		}
+		if dryRun {
+			color.Green("  🗒️ Project that would be deleted: %s", projectNumber)
+		} else {
+			color.Green("  🗑️ Deleted project: %s", projectNumber)
+		}
+		if failed > 0 {
+			color.Red("  ❌ Failed deletions: %d", failed)
+		}
+
+		return nil
+	},
+}
+
+func init() {
+	rootCmd.AddCommand(nukeCmd)
+	nukeCmd.Flags().StringP("projectid", "p", "", "Project ID or URL to nuke")
+	nukeCmd.Flags().BoolP("all", "a", false, "Delete all issues linked to the project")
+	nukeCmd.Flags().Bool("dry-run", false, "Show what would happen without making changes")
+}
+
+
+---
+./cmd/root.go
+---
+package cmd
+
+import (
+	"fmt"
+
+	"github.com/igorcosta/gh-lazy/pkg/github"
+	"github.com/igorcosta/gh-lazy/pkg/utils"
+	"github.com/spf13/cobra"
+)
+
+var rootCmd = &cobra.Command{
+	Use:   "gh lazy",
+	Short: "A GitHub CLI extension for managing projects, issues, and milestones",
+	Long: `gh lazy is a GitHub CLI extension that helps you create project boards,
+issues, milestones, and link them together efficiently.`,
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		tokenFile, _ := cmd.Flags().GetString("token-file")
+		token, err := utils.GetToken(tokenFile)
+		if err != nil {
+			utils.PrintUserGuide()
+			return fmt.Errorf("authentication error: %w", err)
+		}
+
+		client, err := github.NewClient(token)
+		if err != nil {
+			return fmt.Errorf("failed to create GitHub client: %w", err)
+		}
+
+		username, err := client.GetUsername()
+		if err != nil {
+			return fmt.Errorf("failed to get GitHub username: %w", err)
+		}
+
+		utils.PrintWelcome(username)
+		return nil
+	},
+	Run: func(cmd *cobra.Command, args []string) {
+		if len(args) == 0 {
+			cmd.Help()
+		}
+	},
+}
+
+func Execute() error {
+	return rootCmd.Execute()
+}
+
+func init() {
+	rootCmd.PersistentFlags().StringP("repo", "r", "", "The repository name (e.g., 'username/repo')")
+	rootCmd.PersistentFlags().StringP("tasks", "t", "", "Path to the tasks JSON file")
+	rootCmd.PersistentFlags().StringP("token-file", "f", "", "Path to the file containing the GitHub token")
+
+	rootCmd.CompletionOptions.DisableDefaultCmd = true
+
+	rootCmd.SetHelpCommand(&cobra.Command{
+		Use:    "no-help",
+		Hidden: true,
+	})
+}
+
+
+---
+./tasks/example.json
+---
+{
+    "projectTitle": "Example GitHub Project",
+    "milestones": [
+      {
+        "title": "Initial Setup",
+        "description": "Set up the initial project structure and CI/CD",
+        "due_on": "2024-12-31T23:59:59Z",
+        "issues": [
+          {
+            "title": "Configure project repository",
+            "body": "Set up the initial project repository with README, .gitignore, and basic folder structure."
+          },
+          {
+            "title": "Set up CI/CD pipeline",
+            "body": "Implement a basic CI/CD pipeline using GitHub Actions for automated testing and deployment."
+          }
+        ]
+      }
+    ]
+  }
+
+---
+./tasks/westpac-issues.json
+---
+{
+    "projectTitle": "Westpac GitHub Enterprise Cloud Implementation",
+    "milestones": [
+      {
+        "title": "Initial Assessment and Planning",
+        "due_on": "2024-10-01",
+        "issues": [
+          {
+            "title": "Conduct infrastructure documentation review and workshop with Westpac stakeholders",
+            "body": "Review the current infrastructure documentation and hold a workshop with Westpac stakeholders to gather requirements."
+          },
+          {
+            "title": "Define project goals and create draft project plan",
+            "body": "Collaboratively define goals and draft the initial project plan based on stakeholder input."
+          },
+          {
+            "title": "Finalise and align project plan with Westpac Stakeholders",
+            "body": "Get final approval from Westpac stakeholders and align the project plan with their requirements."
+          }
+        ]
+      },
+      {
+        "title": "Security and Risk Management",
+        "due_on": "2024-10-15",
+        "issues": [
+          {
+            "title": "Conduct risk assessment documentation review and workshop",
+            "body": "Review existing risk assessment documents and hold a workshop to align with Westpac's security strategy."
+          },
+          {
+            "title": "Develop GitHub security best practices document",
+            "body": "Create a best practices document for GitHub security aligned with Westpac's policy."
+          },
+          {
+            "title": "Document SBOM and validate security strategy",
+            "body": "Document Software Bill of Materials (SBOM) and validate the security strategy recommendations."
+          }
+        ]
+      },
+      {
+        "title": "GitHub Enterprise Cloud Setup Part 1",
+        "due_on": "2024-11-01",
+        "issues": [
+          {
+            "title": "Review organisation and team structure requirements",
+            "body": "Review and document the requirements for the GitHub Enterprise Cloud organisation and team structure."
+          },
+          {
+            "title": "Provide solution options for team structure and repository management",
+            "body": "Recommend options for managing the team structure and repositories in GitHub Enterprise Cloud."
+          }
+        ]
+      },
+      {
+        "title": "GitHub Enterprise Cloud Setup Part 2",
+        "due_on": "2024-11-15",
+        "issues": [
+          {
+            "title": "Provide guidance for network configuration",
+            "body": "Ensure that the network configuration for GitHub Enterprise Cloud is properly set up."
+          },
+          {
+            "title": "Provide guidance for allowlist and proxy connections",
+            "body": "Help configure allowlist and proxy connections for secure GitHub access."
+          }
+        ]
+      },
+      {
+        "title": "Identity Management and Access Control",
+        "due_on": "2024-12-01",
+        "issues": [
+          {
+            "title": "Confirm MFA and SSO approach",
+            "body": "Confirm the multi-factor authentication and single sign-on strategy."
+          },
+          {
+            "title": "Integrate EntraID and create API for group management",
+            "body": "Integrate EntraID and create APIs to manage user groups."
+          },
+          {
+            "title": "Finalise identity management setup",
+            "body": "Complete the identity management setup, including IACU integration."
+          }
+        ]
+      },
+      {
+        "title": "GitHub Actions and Runners",
+        "due_on": "2024-12-15",
+        "issues": [
+          {
+            "title": "Develop GitHub Actions rollout strategy",
+            "body": "Plan and execute the strategy for GitHub Actions rollout."
+          },
+          {
+            "title": "Set up on-premises GitHub runners",
+            "body": "Install and configure on-premises GitHub runners."
+          },
+          {
+            "title": "Configure Azure Kubernetes runners",
+            "body": "Configure runners in Azure Kubernetes Service (AKS) for GitHub Actions."
+          }
+        ]
+      },
+      {
+        "title": "Environment Management and Enforcement",
+        "due_on": "2025-01-01",
+        "issues": [
+          {
+            "title": "Review implementation requirements for automatic environment enforcement",
+            "body": "Determine requirements for automatically enforcing environment configurations."
+          },
+          {
+            "title": "Set up automated provisioning of environment settings",
+            "body": "Provide solutions for automating environment provisioning."
+          },
+          {
+            "title": "Implement peer review requirements for production commits",
+            "body": "Enforce peer review for commits to the production environment."
+          }
+        ]
+      },
+      {
+        "title": "DevOps Best Practices and Operationalisation",
+        "due_on": "2025-01-15",
+        "issues": [
+          {
+            "title": "Review provisioning and enforcement policies",
+            "body": "Ensure that the provisioning and enforcement policies are effective."
+          },
+          {
+            "title": "Establish monitoring practices",
+            "body": "Set up monitoring systems to track the performance of DevOps processes."
+          },
+          {
+            "title": "Create DevOps best practices guide",
+            "body": "Document best practices for DevOps in the GitHub Enterprise Cloud environment."
+          }
+        ]
+      },
+      {
+        "title": "Final Review and Handover",
+        "due_on": "2025-02-01",
+        "issues": [
+          {
+            "title": "Conduct final assessment and review",
+            "body": "Perform the final review of all project components and ensure everything is in order."
+          },
+          {
+            "title": "Complete handover and future support planning",
+            "body": "Prepare the final handover documents and plan for future support and maintenance."
+          }
+        ]
+      }
+    ]
+  }
+
+---
+./pkg/config/config.go
+---
+package config
+
+import (
+	"github.com/spf13/viper"
+)
+
+type Config struct {
+	Repo      string
+	TasksFile string
+	TokenFile string
+}
+
+func LoadConfig() (*Config, error) {
+	viper.SetConfigName("config")
+	viper.SetConfigType("yaml")
+	viper.AddConfigPath(".")
+	viper.AutomaticEnv()
+
+	viper.SetDefault("repo", "")
+	viper.SetDefault("tasks_file", "")
+	viper.SetDefault("token_file", ".token")
+
+	if err := viper.ReadInConfig(); err != nil {
+		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
+			return nil, err
+		}
+	}
+
+	var config Config
+	err := viper.Unmarshal(&config)
+	if err != nil {
+		return nil, err
+	}
+
+	return &config, nil
+}
+
+
+---
+./pkg/utils/utils.go
+---
+package utils
+
+import (
+	"bufio"
+	"encoding/json"
+	"fmt"
+	"os"
+	"os/exec"
+	"regexp"
+	"strings"
+	"time"
+
+	"github.com/igorcosta/gh-lazy/pkg/models"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
+)
+
+var log = logrus.New()
+
+func init() {
+	log.SetFormatter(&logrus.TextFormatter{
+		FullTimestamp: true,
+	})
+}
+
+func LogError(err error, message string) {
+	log.WithError(err).Error(message)
+}
+
+func LogInfo(message string) {
+	log.Info(message)
+}
+
+func WrapError(err error, message string) error {
+	return errors.Wrap(err, message)
+}
+
+func ReadTokenFromFile(filepath string) (string, error) {
+	file, err := os.Open(filepath)
+	if err != nil {
+		return "", fmt.Errorf("opening token file: %w", err)
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.HasPrefix(line, "GH_TOKEN=") {
+			return strings.TrimPrefix(line, "GH_TOKEN="), nil
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return "", fmt.Errorf("reading token file: %w", err)
+	}
+
+	return "", fmt.Errorf("GH_TOKEN not found in file")
+}
+
+func LoadTasksFile(filePath string) (*models.TasksFile, error) {
+	file, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("reading tasks JSON file: %w", err)
+	}
+
+	var tasksFile models.TasksFile
+	if err := json.Unmarshal(file, &tasksFile); err != nil {
+		return nil, fmt.Errorf("parsing tasks JSON: %w", err)
+	}
+
+	return &tasksFile, nil
+}
+
+func ShowProgress(progressChan <-chan string) {
+	spinner := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+	i := 0
+	for message := range progressChan {
+		fmt.Printf("\r%s %s", spinner[i], message)
+		i = (i + 1) % len(spinner)
+		time.Sleep(100 * time.Millisecond)
+	}
+	fmt.Println()
+}
+
+func PrintWelcome(username string) {
+	fmt.Printf(`
+██╗      █████╗ ███████╗██╗   ██╗
+██║     ██╔══██╗╚══███╔╝╚██╗ ██╔╝
+██║     ███████║  ███╔╝  ╚████╔╝ 
+██║     ██╔══██║ ███╔╝    ╚██╔╝  
+███████╗██║  ██║███████╗   ██║   
+╚══════╝╚═╝  ╚═╝╚══════╝   ╚═╝   
+Welcome, %s! Let's automate your GitHub projects.
+`, username)
+}
+
+func PrintHelp() {
+	fmt.Printf(`
+Lazy - GitHub Project, Milestone, and Issue Manager
+
+Usage: gh lazy [command] [flags]
+
+Commands:
+  create    Create projects, milestones, and issues
+  nuke      Delete a GitHub project and optionally all linked issues
+
+Flags:
+  -r, --repo string         The repository name (e.g., 'username/repo')
+  -t, --tasks string        Path to the tasks JSON file
+  -f, --token-file string   Path to the file containing the GitHub token (default ".token")
+
+Use "gh lazy [command] --help" for more information about a command.
+
+Examples:
+  gh lazy create --repo user/repo --tasks ./tasks.json
+  gh lazy nuke --projectid https://github.com/users/yourusername/projects/1 --all --dry-run
+
+Description:
+  This tool automates the creation and deletion of projects, milestones, and issues in a GitHub repository.
+
+For more information, visit: https://github.com/igorcosta/gh-lazy
+`)
+}
+
+func ParseProjectID(input string) (string, error) {
+	// If the input is a URL, extract the project number
+	if strings.HasPrefix(input, "http") {
+		// Match patterns like /projects/1 or /projects/1/
+		re := regexp.MustCompile(`/projects/(\d+)/?$`)
+		matches := re.FindStringSubmatch(input)
+		if len(matches) < 2 {
+			return "", fmt.Errorf("invalid project URL: %s", input)
+		}
+		return matches[1], nil
+	}
+	// Otherwise, assume it's a project number
+	return input, nil
+}
+
+func GetGitHubCLIToken() (string, error) {
+	cmd := exec.Command("gh", "auth", "token")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to get GitHub CLI token: %w", err)
+	}
+	return strings.TrimSpace(string(output)), nil
+}
+
+func GetToken(tokenFile string) (string, error) {
+	// First, try to get the token from the gh CLI
+	token, err := GetGitHubCLIToken()
+	if err == nil && token != "" {
+		return token, nil
+	}
+
+	// If gh CLI token is not available and tokenFile is provided, try to read from file
+	if tokenFile != "" {
+		token, err := ReadTokenFromFile(tokenFile)
+		if err == nil && token != "" {
+			return token, nil
+		}
+		// Only return an error if a token file was specified but couldn't be read
+		return "", fmt.Errorf("failed to read token from specified file: %w", err)
+	}
+
+	// If we've reached this point, no valid token was found
+	return "", fmt.Errorf("GitHub token not found. Please authenticate with 'gh auth login' or provide a token file using the -f flag")
+}
+
+func PrintUserGuide() {
+	fmt.Println(`To use gh lazy, please ensure you have:
+1. Authenticated with GitHub CLI using 'gh auth login', or
+2. Provided a token file using the -f or --token-file flag
+
+Usage examples:
+  gh lazy create --repo username/repo --tasks tasks.json
+  gh lazy nuke --projectid <project_id_or_url> --all --dry-run
+
+For more information, run: gh lazy --help`)
+}
+
+
+---
+./pkg/models/models.go
+---
+package models
+
+import "time"
+
+type Issue struct {
+	Title  string `json:"title"`
+	Body   string `json:"body"`
+	Number int    `json:"number,omitempty"`
+}
+
+type Milestone struct {
+	Title       string    `json:"title"`
+	Description string    `json:"description,omitempty"`
+	DueOn       time.Time `json:"due_on,omitempty"`
+	State       string    `json:"state,omitempty"`
+	Number      int       `json:"number,omitempty"`
+}
+
+type MilestoneWithIssues struct {
+	Milestone
+	Issues []Issue `json:"issues"`
+}
+
+type TasksFile struct {
+	ProjectTitle string                `json:"projectTitle"`
+	Milestones   []MilestoneWithIssues `json:"milestones"`
+}
+
+type IssueItem struct {
+	Number     int    `json:"number"`
+	Repository string `json:"repository"`
+	Title      string `json:"title"`
+}
+
+type Project struct {
+	Closed           bool   `json:"closed"`
+	ID               string `json:"id"`
+	Number           int    `json:"number"`
+	Title            string `json:"title"`
+	URL              string `json:"url"`
+	ShortDescription string `json:"shortDescription"`
+}
+
+type ProjectListResponse struct {
+	Projects   []Project `json:"projects"`
+	TotalCount int       `json:"totalCount"`
+}
+
+
+---
+./pkg/github/client.go
+---
+package github
+
+import (
+	"context"
+	"fmt"
+	"io"
+	"os/exec"
+	"strings"
+
+	"github.com/cli/go-gh/v2/pkg/api"
+)
+
+type Client struct {
+	client *api.RESTClient
+}
+
+func NewClient(token string) (*Client, error) {
+	client, err := api.NewRESTClient(api.ClientOptions{
+		AuthToken: token,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create GitHub client: %w", err)
+	}
+	return &Client{client: client}, nil
+}
+
+func (c *Client) Get(ctx context.Context, path string, response interface{}) error {
+	return c.client.Get(path, response)
+}
+
+func (c *Client) Post(ctx context.Context, path string, body io.Reader, response interface{}) error {
+	return c.client.Post(path, body, response)
+}
+
+func (c *Client) Patch(ctx context.Context, path string, body io.Reader, response interface{}) error {
+	return c.client.Patch(path, body, response)
+}
+
+func (c *Client) GetProjectOwner(ctx context.Context, projectNumber string) (string, error) {
+	cmd := exec.CommandContext(ctx, "gh", "project", "view", projectNumber, "--json", "owner", "--jq", ".owner.login")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to get project owner: %w", err)
+	}
+	return strings.TrimSpace(string(output)), nil
+}
+
+func (c *Client) GetUsername() (string, error) {
+	var response struct {
+		Login string `json:"login"`
+	}
+	err := c.Get(context.Background(), "user", &response)
+	if err != nil {
+		return "", fmt.Errorf("failed to get username: %w", err)
+	}
+	return response.Login, nil
+}
+
+
+---
+./pkg/github/issues.go
+---
+package github
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"os/exec"
+
+	"github.com/igorcosta/gh-lazy/pkg/models"
+)
+
+func (c *Client) CreateIssue(ctx context.Context, owner, repo string, issue models.Issue) (int, error) {
+	url := fmt.Sprintf("repos/%s/%s/issues", owner, repo)
+	var response struct {
+		Number int `json:"number"`
+	}
+
+	payload, err := json.Marshal(issue)
+	if err != nil {
+		return 0, fmt.Errorf("failed to marshal issue: %w", err)
+	}
+
+	if err := c.Post(ctx, url, bytes.NewReader(payload), &response); err != nil {
+		return 0, fmt.Errorf("failed to create issue: %w", err)
+	}
+	return response.Number, nil
+}
+
+func (c *Client) GetIssueByTitle(ctx context.Context, owner, repo, title string) (*models.Issue, error) {
+	url := fmt.Sprintf("repos/%s/%s/issues?state=all", owner, repo)
+	var issues []models.Issue
+	if err := c.Get(ctx, url, &issues); err != nil {
+		return nil, fmt.Errorf("failed to get issues: %w", err)
+	}
+	for _, i := range issues {
+		if i.Title == title {
+			return &i, nil
+		}
+	}
+	return nil, nil
+}
+
+func (c *Client) UpdateIssueMilestone(ctx context.Context, owner, repo string, issueNumber, milestoneNumber int) error {
+	url := fmt.Sprintf("repos/%s/%s/issues/%d", owner, repo, issueNumber)
+	payload := map[string]interface{}{
+		"milestone": milestoneNumber,
+	}
+
+	jsonPayload, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("failed to marshal payload: %w", err)
+	}
+
+	var response interface{}
+	if err := c.Patch(ctx, url, bytes.NewReader(jsonPayload), &response); err != nil {
+		return fmt.Errorf("failed to update issue milestone: %w", err)
+	}
+	return nil
+}
+
+func (c *Client) CloseIssue(ctx context.Context, repo string, issueNumber int) error {
+	cmd := exec.CommandContext(ctx, "gh", "issue", "close", fmt.Sprintf("%d", issueNumber), "--repo", repo, "--yes")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to close issue #%d: %s - %w", issueNumber, string(output), err)
+	}
+	return nil
+}
+
+// Updated DeleteIssue to use --yes flag and handle issue titles
+func (c *Client) DeleteIssue(ctx context.Context, repo string, issueNumber int) error {
+	cmd := exec.CommandContext(ctx, "gh", "issue", "delete", fmt.Sprintf("%d", issueNumber), "--repo", repo, "--yes")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to delete issue #%d: %s - %w", issueNumber, string(output), err)
+	}
+	return nil
+}
+
+
+---
+./pkg/github/milestones.go
+---
+package github
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"time"
+
+	"github.com/igorcosta/gh-lazy/pkg/models"
+)
+
+func (c *Client) CreateMilestone(ctx context.Context, owner, repo string, milestone models.Milestone) (int, error) {
+	url := fmt.Sprintf("repos/%s/%s/milestones", owner, repo)
+	var response struct {
+		Number int `json:"number"`
+	}
+
+	// Convert the time.Time to the correct string format
+	milestoneCopy := milestone
+	if !milestone.DueOn.IsZero() {
+		milestoneCopy.DueOn = milestone.DueOn.UTC().Truncate(time.Second)
+	}
+
+	payload, err := json.Marshal(milestoneCopy)
+	if err != nil {
+		return 0, fmt.Errorf("failed to marshal milestone: %w", err)
+	}
+
+	if err := c.Post(ctx, url, bytes.NewReader(payload), &response); err != nil {
+		return 0, fmt.Errorf("failed to create milestone: %w", err)
+	}
+	return response.Number, nil
+}
+
+func (c *Client) GetMilestoneByTitle(ctx context.Context, owner, repo, title string) (*models.Milestone, error) {
+	url := fmt.Sprintf("repos/%s/%s/milestones", owner, repo)
+	var milestones []models.Milestone
+	if err := c.Get(ctx, url, &milestones); err != nil {
+		return nil, fmt.Errorf("failed to get milestones: %w", err)
+	}
+	for _, m := range milestones {
+		if m.Title == title {
+			return &m, nil
+		}
+	}
+	return nil, nil
+}
+
+
+---
+./pkg/github/projects.go
+---
+package github
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"os/exec"
+	"strings"
+
+	"github.com/igorcosta/gh-lazy/pkg/models"
+)
+
+func (c *Client) CreateProject(ctx context.Context, title string) (string, error) {
+	owner, err := c.GetUsername()
+	if err != nil {
+		return "", fmt.Errorf("failed to get GitHub username: %w", err)
+	}
+
+	cmd := exec.CommandContext(ctx, "gh", "project", "create", "--owner", owner, "--title", title, "--format", "json")
+	output, err := cmd.Output()
+	if err != nil {
+		if exitError, ok := err.(*exec.ExitError); ok {
+			return "", fmt.Errorf("failed to create project: %s", string(exitError.Stderr))
+		}
+		return "", fmt.Errorf("failed to create project: %w", err)
+	}
+	var response struct {
+		URL string `json:"url"`
+	}
+	if err := json.Unmarshal(output, &response); err != nil {
+		return "", fmt.Errorf("failed to parse project creation output: %w", err)
+	}
+	return response.URL, nil
+}
+
+func (c *Client) AddIssueToProject(ctx context.Context, projectURL, issueURL string) error {
+	owner, err := c.GetUsername()
+	if err != nil {
+		return fmt.Errorf("failed to get GitHub username: %w", err)
+	}
+
+	// Extract project number from URL
+	parts := strings.Split(projectURL, "/")
+	projectNumber := parts[len(parts)-1]
+
+	cmd := exec.CommandContext(ctx, "gh", "project", "item-add", projectNumber,
+		"--owner", owner, "--url", issueURL)
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to add issue to project: %s - %w", string(output), err)
+	}
+
+	return nil
+}
+
+func (c *Client) ListUserProjects(ctx context.Context) ([]models.Project, error) {
+	owner, err := c.GetUsername()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get GitHub username: %w", err)
+	}
+
+	cmd := exec.CommandContext(ctx, "gh", "project", "list", "--owner", owner, "--format", "json")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf("failed to list projects: %s - %w", string(output), err)
+	}
+
+	var result models.ProjectListResponse
+	if err := json.Unmarshal(output, &result); err != nil {
+		return nil, fmt.Errorf("failed to parse projects: %w", err)
+	}
+
+	return result.Projects, nil
+}
+
+func (c *Client) ListProjectIssues(ctx context.Context, projectNumber string) ([]models.IssueItem, error) {
+	owner, err := c.GetUsername()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get GitHub username: %w", err)
+	}
+
+	cmd := exec.CommandContext(ctx, "gh", "project", "item-list", projectNumber, "--owner", owner, "--format", "json")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf("failed to list project items: %s - %w", string(output), err)
+	}
+
+	var result struct {
+		Items []struct {
+			Content struct {
+				TypeName   string `json:"__typename"`
+				Number     int    `json:"number"`
+				Repository string `json:"repository"`
+			} `json:"content"`
+		} `json:"items"`
+	}
+
+	if err := json.Unmarshal(output, &result); err != nil {
+		return nil, fmt.Errorf("failed to parse project items: %w", err)
+	}
+
+	var issues []models.IssueItem
+	for _, item := range result.Items {
+		if item.Content.TypeName == "Issue" {
+			// Fetch issue title
+			title, err := c.GetIssueTitle(ctx, item.Content.Repository, item.Content.Number)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get title for issue #%d: %w", item.Content.Number, err)
+			}
+			issues = append(issues, models.IssueItem{
+				Number:     item.Content.Number,
+				Repository: item.Content.Repository,
+				Title:      title,
+			})
+		}
+	}
+
+	return issues, nil
+}
+
+func (c *Client) GetIssueTitle(ctx context.Context, repo string, issueNumber int) (string, error) {
+	cmd := exec.CommandContext(ctx, "gh", "issue", "view", fmt.Sprintf("%d", issueNumber), "--repo", repo, "--json", "title", "--jq", ".title")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to get title for issue #%d: %w", issueNumber, err)
+	}
+	return strings.TrimSpace(string(output)), nil
+}
+
+func (c *Client) DeleteProject(ctx context.Context, projectNumber string) error {
+	owner, err := c.GetUsername()
+	if err != nil {
+		return fmt.Errorf("failed to get GitHub username: %w", err)
+	}
+
+	cmd := exec.CommandContext(ctx, "gh", "project", "delete", projectNumber, "--owner", owner)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to delete project: %s - %w", string(output), err)
+	}
+	return nil
+}
+
+func (c *Client) LinkProjectToRepo(ctx context.Context, repo, projectNumber string) error {
+	owner, err := c.GetUsername()
+	if err != nil {
+		return fmt.Errorf("failed to get GitHub username: %w", err)
+	}
+
+	cmd := exec.CommandContext(ctx, "gh", "project", "link", projectNumber,
+		"--owner", owner, "--repo", fmt.Sprintf("%s/%s", owner, repo))
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to link project to repository: %s - %w", string(output), err)
+	}
+
+	return nil
+}
+
+
+---

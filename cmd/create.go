@@ -26,34 +26,28 @@ var createCmd = &cobra.Command{
 			return fmt.Errorf("failed to load config: %w", err)
 		}
 
-		// Get the repository name from the flag
 		repoName, err := cmd.Flags().GetString("repo")
 		if err != nil {
 			return fmt.Errorf("failed to get repository name: %w", err)
 		}
 
-		// Check if the repository name is provided
 		if repoName == "" {
 			return fmt.Errorf("repository name is required. Use -r or --repo flag to specify the name")
 		}
 
-		// Get the tasks file path from the flag
 		tasksFile, err := cmd.Flags().GetString("tasks")
 		if err != nil {
 			return fmt.Errorf("failed to get tasks file path: %w", err)
 		}
 
-		// Check if the tasks file path is provided
 		if tasksFile == "" {
 			return fmt.Errorf("tasks file path is required. Use -t or --tasks flag to specify the path")
 		}
 
-		// Check if the file exists
 		if _, err := os.Stat(tasksFile); os.IsNotExist(err) {
 			return fmt.Errorf("tasks file does not exist: %s", tasksFile)
 		}
 
-		// Get the absolute path of the tasks file
 		absTasksFile, err := filepath.Abs(tasksFile)
 		if err != nil {
 			return fmt.Errorf("failed to get absolute path of tasks file: %w", err)
@@ -83,7 +77,7 @@ var createCmd = &cobra.Command{
 			return fmt.Errorf("invalid repository name: %w", err)
 		}
 
-		totalTasks := len(tasks.Milestones) + 1 // +1 for project creation
+		totalTasks := len(tasks.Milestones) + 2 // +2 for project creation and linking
 		for _, m := range tasks.Milestones {
 			totalTasks += len(m.Issues)
 		}
@@ -112,6 +106,21 @@ var createCmd = &cobra.Command{
 		}
 		bar.Add(1)
 		completed++
+
+		// Extract project number from URL
+		parts := strings.Split(projectURL, "/")
+		projectNumber := parts[len(parts)-1]
+
+		// Link the project to the repository
+		err = client.LinkProjectToRepo(ctx, projectNumber, repoName)
+		if err != nil {
+			color.Yellow("⚠️ Failed to link project to repository: %v", err)
+			skipped++
+		} else {
+			color.Green("✅ Project linked to repository %s", repoName)
+			completed++
+		}
+		bar.Add(1)
 
 		for _, milestone := range tasks.Milestones {
 			milestoneNumber, err := createOrGetMilestone(ctx, client, owner, repo, milestone)
