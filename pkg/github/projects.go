@@ -103,14 +103,29 @@ func (c *Client) ListProjectIssues(ctx context.Context, projectNumber string) ([
 	var issues []models.IssueItem
 	for _, item := range result.Items {
 		if item.Content.TypeName == "Issue" {
+			// Fetch issue title
+			title, err := c.GetIssueTitle(ctx, item.Content.Repository, item.Content.Number)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get title for issue #%d: %w", item.Content.Number, err)
+			}
 			issues = append(issues, models.IssueItem{
 				Number:     item.Content.Number,
 				Repository: item.Content.Repository,
+				Title:      title,
 			})
 		}
 	}
 
 	return issues, nil
+}
+
+func (c *Client) GetIssueTitle(ctx context.Context, repo string, issueNumber int) (string, error) {
+	cmd := exec.CommandContext(ctx, "gh", "issue", "view", fmt.Sprintf("%d", issueNumber), "--repo", repo, "--json", "title", "--jq", ".title")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to get title for issue #%d: %w", issueNumber, err)
+	}
+	return strings.TrimSpace(string(output)), nil
 }
 
 func (c *Client) DeleteProject(ctx context.Context, projectNumber string) error {
@@ -119,7 +134,7 @@ func (c *Client) DeleteProject(ctx context.Context, projectNumber string) error 
 		return fmt.Errorf("failed to get GitHub username: %w", err)
 	}
 
-	cmd := exec.CommandContext(ctx, "gh", "project", "delete", projectNumber, "--owner", owner, "--yes")
+	cmd := exec.CommandContext(ctx, "gh", "project", "delete", projectNumber, "--owner", owner)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("failed to delete project: %s - %w", string(output), err)

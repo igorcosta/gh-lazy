@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
+	"strings"
 
 	"github.com/cli/go-gh/v2/pkg/api"
 )
@@ -41,7 +42,7 @@ func (c *Client) GetProjectOwner(ctx context.Context, projectNumber string) (str
 	if err != nil {
 		return "", fmt.Errorf("failed to get project owner: %w", err)
 	}
-	return string(output), nil
+	return strings.TrimSpace(string(output)), nil
 }
 
 func (c *Client) GetUsername() (string, error) {

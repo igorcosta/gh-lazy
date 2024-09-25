@@ -29,6 +29,7 @@ type TasksFile struct {
 type IssueItem struct {
 	Number     int    `json:"number"`
 	Repository string `json:"repository"`
+	Title      string `json:"title"`
 }
 
 type Project struct {

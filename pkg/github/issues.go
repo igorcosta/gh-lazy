@@ -58,6 +58,7 @@ func (c *Client) UpdateIssueMilestone(ctx context.Context, owner, repo string, i
 	}
 	return nil
 }
+
 func (c *Client) CloseIssue(ctx context.Context, repo string, issueNumber int) error {
 	cmd := exec.CommandContext(ctx, "gh", "issue", "close", fmt.Sprintf("%d", issueNumber), "--repo", repo, "--yes")
 	output, err := cmd.CombinedOutput()
@@ -67,12 +68,12 @@ func (c *Client) CloseIssue(ctx context.Context, repo string, issueNumber int) e
 	return nil
 }
 
-// not working
+// Updated DeleteIssue to use --yes flag and handle issue titles
 func (c *Client) DeleteIssue(ctx context.Context, repo string, issueNumber int) error {
-	cmd := exec.CommandContext(ctx, "gh", "issue", "delete", fmt.Sprintf("%d", issueNumber), "--repo", repo, "--confirm")
+	cmd := exec.CommandContext(ctx, "gh", "issue", "delete", fmt.Sprintf("%d", issueNumber), "--repo", repo, "--yes")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("failed to delete issue #%d: %s", issueNumber, string(output))
+		return fmt.Errorf("failed to delete issue #%d: %s - %w", issueNumber, string(output), err)
 	}
 	return nil
 }

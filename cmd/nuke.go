@@ -3,9 +3,11 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/fatih/color"
+	"github.com/igorcosta/gh-lazy/pkg/config"
 	"github.com/igorcosta/gh-lazy/pkg/github"
 	"github.com/igorcosta/gh-lazy/pkg/utils"
 	"github.com/manifoldco/promptui"
@@ -16,14 +18,23 @@ import (
 var nukeCmd = &cobra.Command{
 	Use:   "nuke",
 	Short: "Delete a GitHub project and optionally all linked issues",
+	Long: `Delete a GitHub project and optionally all issues linked to it.
+
+**Warning:** This operation is irreversible. Use with caution.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		// Load configuration
+		cfg, err := config.LoadConfig()
+		if err != nil {
+			return fmt.Errorf("failed to load config: %w", err)
+		}
+
 		// Parse flags
 		projectIDOrURL, _ := cmd.Flags().GetString("projectid")
 		deleteAll, _ := cmd.Flags().GetBool("all")
 		dryRun, _ := cmd.Flags().GetBool("dry-run")
 
-		// Create GitHub client
-		token, err := utils.GetToken("")
+		// Create GitHub client using the token from config
+		token, err := utils.GetToken(cfg.TokenFile)
 		if err != nil {
 			utils.PrintUserGuide()
 			return fmt.Errorf("authentication error: %w", err)
@@ -69,33 +80,34 @@ var nukeCmd = &cobra.Command{
 			projectIDOrURL = fmt.Sprintf("%d", selectedProject.Number)
 			fmt.Printf("Selected project: %s\n", selectedProject.Title)
 
-			// Ask if the user wants to perform a dry run
-			if !cmd.Flags().Changed("dry-run") {
-				dryRunPrompt := promptui.Prompt{
-					Label:     "Do you want to perform a dry run first? (y/N)",
+			// Confirm deletion if not in dry-run mode
+			if !cmd.Flags().Changed("dry-run") && !dryRun {
+				confirmPrompt := promptui.Prompt{
+					Label:     fmt.Sprintf("Are you sure you want to delete project '%s' and all linked issues?", selectedProject.Title),
 					IsConfirm: true,
 					Default:   "n",
 				}
-				result, err := dryRunPrompt.Run()
-				if err != nil {
-					dryRun = false
-				} else {
-					dryRun = (result == "y" || result == "Y")
+				result, err := confirmPrompt.Run()
+				if err != nil || strings.ToLower(result) != "y" {
+					fmt.Println("Operation cancelled.")
+					return nil
 				}
 			}
 
 			// Ask if the user wants to delete all associated issues
 			if !cmd.Flags().Changed("all") {
-				deleteAllPrompt := promptui.Prompt{
-					Label:     "Do you want to delete all issues associated with the project? (y/N)",
-					IsConfirm: true,
-					Default:   "n",
-				}
-				result, err := deleteAllPrompt.Run()
-				if err != nil {
-					deleteAll = false
-				} else {
-					deleteAll = (result == "y" || result == "Y")
+				if !dryRun {
+					deleteAllPrompt := promptui.Prompt{
+						Label:     "Do you want to delete all issues associated with the project? (y/N)",
+						IsConfirm: true,
+						Default:   "n",
+					}
+					result, err := deleteAllPrompt.Run()
+					if err != nil {
+						deleteAll = false
+					} else {
+						deleteAll = (strings.ToLower(result) == "y")
+					}
 				}
 			}
 		}
@@ -138,19 +150,21 @@ var nukeCmd = &cobra.Command{
 		}
 
 		failed := 0
+		deleted := 0
 
 		// Delete issues if --all is set
 		if deleteAll {
 			for _, issue := range issues {
 				if dryRun {
-					color.Cyan("🗒️ Would delete issue #%d in repository %s", issue.Number, issue.Repository)
+					color.Cyan("🗒️ Would delete issue #%d: %s", issue.Number, issue.Title)
 				} else {
-					err := client.CloseIssue(ctx, issue.Repository, issue.Number)
+					err := client.DeleteIssue(ctx, issue.Repository, issue.Number)
 					if err != nil {
 						color.Red("❌ Failed to delete issue #%d: %v", issue.Number, err)
 						failed++
 					} else {
-						color.Green("🗑️ Deleted issue #%d", issue.Number)
+						color.Green("🗑️ Deleted issue #%d: %s", issue.Number, issue.Title)
+						deleted++
 					}
 				}
 				bar.Add(1)
@@ -158,7 +172,7 @@ var nukeCmd = &cobra.Command{
 		} else if dryRun && len(issues) > 0 {
 			color.Cyan("Issues linked to the project that would not be deleted:")
 			for _, issue := range issues {
-				color.Cyan("  - Issue #%d in repository %s", issue.Number, issue.Repository)
+				color.Cyan("  - Issue #%d: %s", issue.Number, issue.Title)
 			}
 		}
 
@@ -186,7 +200,7 @@ var nukeCmd = &cobra.Command{
 			if dryRun {
 				color.Green("  🗒️ Issues that would be deleted: %d", len(issues))
 			} else {
-				color.Green("  🗑️ Deleted issues: %d", len(issues)-failed)
+				color.Green("  🗑️ Deleted issues: %d", deleted)
 			}
 		}
 		if dryRun {

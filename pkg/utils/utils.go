@@ -129,7 +129,7 @@ func ParseProjectID(input string) (string, error) {
 		re := regexp.MustCompile(`/projects/(\d+)/?$`)
 		matches := re.FindStringSubmatch(input)
 		if len(matches) < 2 {
-			return "", fmt.Errorf("invalid project URL")
+			return "", fmt.Errorf("invalid project URL: %s", input)
 		}
 		return matches[1], nil
 	}
