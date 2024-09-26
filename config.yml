@@ -8,6 +8,9 @@ github:
   api_url: "https://api.github.com"
   timeout: 30s
 
+llm:
+  systemprompt: "pkg/utils/llms/goexpert.txt"
+
 # Logging configuration
 log:
   level: "info"
