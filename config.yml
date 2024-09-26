@@ -9,7 +9,7 @@ github:
   timeout: 30s
 
 llm:
-  systemprompt: "pkg/utils/llms/goexpert.txt"
+  systemprompt: "pkg/utils/llms/systemprompts/test.txt"
 
 # Logging configuration
 log:

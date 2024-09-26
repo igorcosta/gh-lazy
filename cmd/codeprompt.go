@@ -3,9 +3,12 @@ package cmd
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"io/ioutil"
+
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -80,18 +83,30 @@ func runCodeprompt(cmd *cobra.Command, args []string) error {
 	}
 	defer output.Flush()
 
-	var combinedPrompt string
-	if systemPrompt {
-		expertContent, err := readSystemPromptFile()
-		if err != nil {
-			fmt.Printf("Warning: %v\n", err)
-			combinedPrompt = prompt
-		} else {
-			combinedPrompt = strings.Replace(expertContent, "{USER_REQUESTED}", prompt, -1)
-		}
-	} else {
-		combinedPrompt = prompt
+	// Read system prompt content
+	goExpertContent, err := readSystemPromptFile()
+	if err != nil {
+		return fmt.Errorf("failed to read the system prompt file: %w", err)
 	}
+
+	// Replace {USER_REQUESTED} with the user's prompt
+	re := regexp.MustCompile(`{\s*USER_REQUESTED\s*}`)
+	combinedPrompt := re.ReplaceAllString(goExpertContent, prompt)
+
+	// Write the combined prompt as the first content
+	fmt.Fprintln(output, combinedPrompt)
+	fmt.Fprintln(output, "---")
+
+	// Add project structure section
+	fmt.Fprintln(output, "Here is the project structure")
+	fmt.Fprintln(output, "---")
+
+	// Generate and write project structure
+	if err := writeProjectStructure(output, path); err != nil {
+		return fmt.Errorf("failed to write project structure: %w", err)
+	}
+
+	fmt.Fprintln(output, "---")
 
 	// Write the combined prompt as the first content
 	if xmlOutput {
@@ -110,7 +125,7 @@ func runCodeprompt(cmd *cobra.Command, args []string) error {
 	// Handle the root path (current directory) explicitly
 	fmt.Printf("Processing directory: %s\n", path)
 
-	err := filepath.WalkDir(path, func(filePath string, d os.DirEntry, err error) error {
+	err = filepath.WalkDir(path, func(filePath string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -159,6 +174,81 @@ func runCodeprompt(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+func writeProjectStructure(w io.Writer, root string) error {
+	var dirs []bool
+	var dirCount, fileCount int
+
+	fmt.Fprintf(w, ".\n")
+
+	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if path == root {
+			return nil
+		}
+
+		// Skip hidden files and directories
+		if strings.HasPrefix(filepath.Base(path), ".") {
+			if info.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+
+		rel, err := filepath.Rel(root, path)
+		if err != nil {
+			return err
+		}
+		depth := len(strings.Split(rel, string(os.PathSeparator))) - 1
+
+		// Adjust dirs slice
+		if depth >= len(dirs) {
+			dirs = append(dirs, false)
+		} else {
+			dirs = dirs[:depth+1]
+			dirs[depth] = false
+		}
+
+		// Prepare the prefix
+		var prefix string
+		for i, isLast := range dirs[:depth] {
+			if i == depth-1 {
+				if isLast {
+					prefix += "└── "
+				} else {
+					prefix += "├── "
+				}
+			} else if isLast {
+				prefix += "    "
+			} else {
+				prefix += "│   "
+			}
+		}
+
+		// Print the entry
+		fmt.Fprintf(w, "%s%s\n", prefix, filepath.Base(path))
+
+		// Update counters
+		if info.IsDir() {
+			dirCount++
+			dirs[depth] = true
+		} else {
+			fileCount++
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return err
+	}
+
+	// Print summary
+	fmt.Fprintf(w, "\n%d directories, %d files\n", dirCount, fileCount)
+	return nil
+}
+
 func readSystemPromptFile() (string, error) {
 	systemPromptFile := viper.GetString("llm.systemprompt")
 	if systemPromptFile == "" {
@@ -179,7 +269,6 @@ func readSystemPromptFile() (string, error) {
 	}
 	return string(content), nil
 }
-
 func shouldIgnore(path string, gitignoreRules []string) bool {
 	baseName := filepath.Base(path)
 
