@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go-version: [1.18, 1.19, 1.22]
+        go-version: [1.19,1.22,1.23.1]  # Run the build job with multiple Go versions
         os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
       - name: Checkout code
@@ -74,7 +74,7 @@ jobs:
 
       - name: Bump version
         id: bump
-        uses: anothrNick/github-tag-action@v1.37.0
+        uses: anothrNick/github-tag-action@1.71.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           tag_prefix: 'v'
