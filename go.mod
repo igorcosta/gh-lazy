@@ -1,6 +1,6 @@
 module github.com/igorcosta/gh-lazy
 
-go 1.22.3
+go 1.22
 
 require (
 	github.com/cli/go-gh/v2 v2.10.0
