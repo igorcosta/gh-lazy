@@ -6,6 +6,7 @@ require (
 	github.com/cli/go-gh/v2 v2.10.0
 	github.com/fatih/color v1.17.0
 	github.com/manifoldco/promptui v0.9.0
+	github.com/nsf/termbox-go v1.1.1
 	github.com/pkg/errors v0.9.1
 	github.com/schollz/progressbar/v3 v3.16.0
 	github.com/sirupsen/logrus v1.9.3
