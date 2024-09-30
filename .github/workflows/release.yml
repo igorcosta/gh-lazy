@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go-version: [1.19,1.22,1.23.1]  # Run the build job with multiple Go versions
+        go-version: [1.22,1.23.1]  # Run the build job with multiple Go versions
         os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
       - name: Checkout code
