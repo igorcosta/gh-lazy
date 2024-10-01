@@ -11,28 +11,44 @@ on:
 jobs:
   build:
     name: Build Binary
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        go-version: [1.22,1.23.1]  # Run the build job with multiple Go versions
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        go-version: [1.22, 1.23.1]
+        os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Go ${{ matrix.go-version }}
         uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go-version }}
 
+      - name: Cache Go modules
+        uses: actions/cache@v3
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Set up CGO for macOS
+        if: runner.os == 'macOS'
+        run: |
+          brew install gcc
+          echo "CC=gcc" >> $GITHUB_ENV
+
       - name: Build
         run: |
-          go build -v -o bin/your-extension
+          go build -v -o bin/lazy-${{ runner.os }}-${{ runner.arch }}
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ runner.os }}-binary
+          name: ${{ runner.os }}-${{ matrix.go-version }}-binary
           path: bin/
 
   release:
@@ -43,26 +59,35 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Download Artifacts
-        uses: actions/download-artifact@v4
         with:
-          path: ./artifacts
+          fetch-depth: 0
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: '1.23'
 
-      - name: Install GoReleaser
+      - name: Set up GCC for CGO
         run: |
-          curl -sL https://git.io/goreleaser | bash
+          sudo apt-get update
+          sudo apt-get install -y gcc-multilib gcc-mingw-w64
+
+      - name: Set up macOS cross-compilation
+        run: |
+          sudo apt-get install -y clang llvm libc6-dev-i386
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
 
       - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v5
+        with:
+          distribution: goreleaser
+          version: latest
+          args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          goreleaser release --rm-dist
+          CGO_ENABLED: 1
 
   bump_version:
     name: Bump Version
@@ -70,15 +95,15 @@ jobs:
     if: github.event_name == 'workflow_dispatch'
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Bump version
-        id: bump
-        uses: anothrNick/github-tag-action@1.71.0
+        uses: actions/checkout@v4
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          tag_prefix: 'v'
+          fetch-depth: 0
 
-      - name: Push changes
-        run: |
-          git push origin --tags
+      - name: Bump version and push tag
+        id: bump_version
+        uses: anothrNick/github-tag-action@1.71.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEFAULT_BUMP: patch
+          WITH_V: true
+          RELEASE_BRANCHES: main
