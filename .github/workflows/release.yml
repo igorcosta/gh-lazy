@@ -43,7 +43,7 @@ jobs:
 
       - name: Build
         run: |
-          go build -v -o bin/lazy-${{ runner.os }}-${{ runner.arch }}
+          go build -v -o bin/gh-lazy-${{ runner.os }}-${{ runner.arch }}
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
