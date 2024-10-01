@@ -5,23 +5,21 @@ import (
 	"os"
 
 	"github.com/igorcosta/gh-lazy/cmd"
-	"github.com/igorcosta/gh-lazy/pkg/utils"
 	"github.com/igorcosta/gh-lazy/pkg/version"
 )
 
 func main() {
-	// Handle version flag
-	if len(os.Args) > 1 && os.Args[1] == "--version" {
-		fmt.Println(version.GetVersionInfo())
-		return
+	for _, arg := range os.Args[1:] {
+		if arg == "-v" || arg == "--version" {
+			fmt.Printf("gh-lazy version %s\n", version.Version)
+			fmt.Printf("commit: %s\n", version.Commit)
+			fmt.Printf("built at: %s\n", version.BuildDate)
+			return
+		}
 	}
 
-	// Print version information at startup
-	fmt.Printf("gh-lazy %s\n", version.Version)
-
 	if err := cmd.Execute(); err != nil {
-		utils.LogError(err, "Command execution failed")
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		fmt.Println(err)
 		os.Exit(1)
 	}
 }

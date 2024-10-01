@@ -40,10 +40,12 @@ jobs:
         run: |
           brew reinstall gcc
           echo "CC=gcc" >> $GITHUB_ENV
-
       - name: Build
         run: |
-          go build -v -o bin/gh-lazy-${{ runner.os }}-${{ runner.arch }}
+          go build -v -ldflags="-X 'github.com/igorcosta/gh-lazy/pkg/version.Version=${{ github.ref_name }}' -X 'github.com/igorcosta/gh-lazy/pkg/version.GitCommit=${{ github.sha }}' -X 'github.com/igorcosta/gh-lazy/pkg/version.BuildDate=$(date -u +'%Y-%m-%dT%H:%M:%SZ')'" -o bin/gh-lazy-${{ runner.os }}-${{ runner.arch }}
+      # - name: Build
+      #   run: |
+      #     go build -v -ldflags="-X 'github.com/igorcosta/gh-lazy/pkg/version.Version=${{ github.ref_name }}' -X 'github.com/igorcosta/gh-lazy/pkg/version.Commit=${{ github.sha }}' -X 'github.com/igorcosta/gh-lazy/pkg/version.Date=$(date -u +'%Y-%m-%dT%H:%M:%SZ')'" -o bin/gh-lazy-${{ runner.os }}-${{ runner.arch }}
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
@@ -51,11 +53,32 @@ jobs:
           name: ${{ runner.os }}-${{ matrix.go-version }}-binary
           path: bin/
 
+  bump_version:
+    name: Bump Version
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    outputs:
+      new_tag: ${{ steps.bump_version.outputs.new_tag }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Bump version and push tag
+        id: bump_version
+        uses: anothrNick/github-tag-action@1.71.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEFAULT_BUMP: patch
+          WITH_V: true
+          RELEASE_BRANCHES: main
+
   release:
     name: Create GitHub Release
-    needs: build
+    needs: [build, bump_version]
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name == 'push' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main')
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -78,6 +101,15 @@ jobs:
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v4
+        
+      - name: Get release tag
+        id: get_tag
+        run: |
+          if [[ ${{ github.event_name }} == 'push' && ${{ github.ref }} == 'refs/heads/main' ]]; then
+            echo "RELEASE_TAG=${{ needs.bump_version.outputs.new_tag }}" >> $GITHUB_ENV
+          else
+            echo "RELEASE_TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+          fi
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v5
@@ -88,22 +120,3 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CGO_ENABLED: 1
-
-  bump_version:
-    name: Bump Version
-    runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch'
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Bump version and push tag
-        id: bump_version
-        uses: anothrNick/github-tag-action@1.71.0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          DEFAULT_BUMP: patch
-          WITH_V: true
-          RELEASE_BRANCHES: main

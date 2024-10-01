@@ -1,4 +1,4 @@
-project_name: lazy
+project_name: gh-lazy
 
 builds:
   - id: macos
@@ -8,11 +8,13 @@ builds:
     goarch:
       - amd64
       - arm64
-    ldflags:
-      - -X main.version={{.Version}}
-      - -X main.commit={{.Commit}}
     env:
       - CGO_ENABLED=1
+    ldflags:
+      - -s -w
+      - -X github.com/igorcosta/gh-lazy/pkg/version.Version={{.Version}}
+      - -X github.com/igorcosta/gh-lazy/pkg/version.Commit={{.Commit}}
+      - -X github.com/igorcosta/gh-lazy/pkg/version.Date={{.Date}}
   - id: other
     main: ./main.go
     goos:
@@ -21,9 +23,13 @@ builds:
     goarch:
       - amd64
       - arm64
+    env:
+      - CGO_ENABLED=1
     ldflags:
-      - -X main.version={{.Version}}
-      - -X main.commit={{.Commit}}
+      - -s -w
+      - -X github.com/igorcosta/gh-lazy/pkg/version.Version={{.Version}}
+      - -X github.com/igorcosta/gh-lazy/pkg/version.Commit={{.Commit}}
+      - -X github.com/igorcosta/gh-lazy/pkg/version.Date={{.Date}}
 
 archives:
   - format: tar.gz
@@ -42,3 +48,9 @@ release:
 
 changelog:
   sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - Merge pull request
+      - Merge branch
