@@ -101,7 +101,7 @@ jobs:
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v4
-
+        
       - name: Get release tag
         id: get_tag
         run: |
