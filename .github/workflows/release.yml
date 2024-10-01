@@ -43,7 +43,6 @@ jobs:
         run: |
           brew reinstall gcc
           echo "CC=gcc" >> $GITHUB_ENV
-
       - name: Build
         run: |
           go build -v -ldflags="-X 'github.com/igorcosta/gh-lazy/pkg/version.Version=${{ github.ref_name }}' -X 'github.com/igorcosta/gh-lazy/pkg/version.Commit=${{ github.sha }}' -X 'github.com/igorcosta/gh-lazy/pkg/version.BuildDate=$(date -u +'%Y-%m-%dT%H:%M:%SZ')'" -o bin/gh-lazy-${{ runner.os }}-${{ runner.arch }}
@@ -106,7 +105,6 @@ jobs:
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v4
-
       - name: Get release tag
         id: get_tag
         run: |
