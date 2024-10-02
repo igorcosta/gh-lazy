@@ -190,7 +190,7 @@ Remember: Stay Lazy, Stay Productive! 😴💻
 
 I've done this due to the community efforts, making it easy like a breeze. 🌬️ Because why work hard when you can work smart? 🧠💡
 
-[Special thanks](SPECIAL_THANKS.md) for the full list of lazy legends who made this possible! 🦸‍♂️🦸‍♀️
+[Special thanks](./SPECIAL_THANKs.md) for the full list of lazy legends who made this possible! 🦸‍♂️🦸‍♀️
 
 <details>
 <summary>Click here for a sneak peek of our gratitude (and some reactions)! 👀</summary>
