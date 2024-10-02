@@ -1,10 +1,10 @@
-# 🚀 Lazy: Your GitHub Project v2 Supercharger
+# 🚀 Lazy: Your productive gh and git superpowers 
 
 [![Awesome](https://cdn.rawgit.com/sindresorhus/awesome/d7305f38d29fed78fa85652e3a63e154dd8e8829/media/badge.svg)](https://github.com/sindresorhus/awesome)
 [![GitHub stars](https://img.shields.io/github/stars/igorcosta/gh-lazy.svg)](https://github.com/igorcosta/gh-lazy/stargazers)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
-> Because life's too short for manual setups!
+> Because life's too short for manual setups and you don't have time to automate things!
 
 ## 🎭 What's in a Name?
 
@@ -15,15 +15,16 @@
 
 ## 🌟 Overview
 
-Lazy is your secret weapon for turbocharging GitHub CLI commands and project setups at the enterprise level. Say goodbye to tedious manual configurations and hello to lightning-fast, automated awesomeness! We're so lazy that we took advantage of the existing `awesome github cli tool` and beautified it with laziness.
+Lazy is your secret weapon for turbocharging git, GitHub CLI commands. Say goodbye to tedious manual configurations, combined commands and hello to lightning-fast, automated awesomeness! We're so lazy that we took advantage of the existing `awesome github cli tool` and beautified it with laziness.
 
 ## 🚀 Features That'll Make You Go "Wow!"
 
-- 🏃‍♂️ Sprint through GitHub issue and milestone creation
+- 🏃‍♂️ Sprint through GitHub issue or issue`S` and milestone creation, deletion
 - 🤖 Automagically set up GitHub Projects (v2)
 - 🧙‍♂️ Customize task templates with the power of JSON
 - 🧨 **Nuke GitHub projects and issues with ease**
 - 🔗 Seamlessly integrate with GitHub CLI like a boss
+- Private LLM interface for Ollama or `Llama-3.2 2b param`
 
 ## 🛠️ Requirements
 
@@ -35,6 +36,7 @@ Before you embark on your Lazy journey, make sure you have:
 4. A valid GitHub token with appropriate permissions (we'll show you how)
 5. Basic knowledge of JSON (don't worry, it's not rocket science)
 6. A burning desire to automate ALL THE THINGS!
+7. Optional: If you have ollama installed, configure an LLM for more awesome stuff!!!
 
 ## 🏗️ Installation
 
@@ -68,7 +70,7 @@ gh lazy create --repo "your-awesome-username/your-cool-repo" --tasks "path/to/yo
 #### 🎛️ Available Options for `create`
 
 ```bash
-Lazy - The GitHub Milestone and Issue Wizard
+Lazy - Your productive gh and git superpowers 
 Usage: gh lazy create [flags]
 
 Flags:
@@ -136,6 +138,13 @@ Example:
   ```bash
   gh lazy nuke --projectid 1 --all
   ```
+
+- **Need to prepare your prompt for your favourite LLM?**
+
+```bash
+gh lazy codeprompt "given this project, I need to modify my version.go file, help me out" --system-prompt . --ignore-gitignore --ignore "go.sum" --ignore "*.md" --ignore "gh-lazy" -o prompt.txt 
+
+```
 
 ---
 
