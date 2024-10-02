@@ -17,7 +17,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        go-version: [1.22, 1.23.1]
+        go-version: [1.22.x, 1.23.x]
         os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
       - name: Checkout code
@@ -38,14 +38,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
 
-      - name: Set up CGO for macOS
-        if: runner.os == 'macOS'
-        run: |
-          brew reinstall gcc
-          echo "CC=gcc" >> $GITHUB_ENV
       - name: Build
         run: |
-          go build -v -ldflags="-X 'github.com/igorcosta/gh-lazy/pkg/version.Version=${{ github.ref_name }}' -X 'github.com/igorcosta/gh-lazy/pkg/version.Commit=${{ github.sha }}' -X 'github.com/igorcosta/gh-lazy/pkg/version.BuildDate=$(date -u +'%Y-%m-%dT%H:%M:%SZ')'" -o bin/gh-lazy-${{ runner.os }}-${{ runner.arch }}
+          go build -v -ldflags="-s -w -X 'github.com/igorcosta/gh-lazy/pkg/version.Version=${{ github.ref_name }}' -X 'github.com/igorcosta/gh-lazy/pkg/version.Commit=${{ github.sha }}' -X 'github.com/igorcosta/gh-lazy/pkg/version.BuildDate=$(date -u +'%Y-%m-%dT%H:%M:%SZ')'" -o bin/gh-lazy-${{ runner.os }}-${{ runner.arch }}
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
@@ -92,19 +87,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.23'
-
-      - name: Set up GCC for CGO
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc-multilib gcc-mingw-w64
-
-      - name: Set up macOS cross-compilation
-        run: |
-          sudo apt-get install -y clang llvm libc6-dev-i386
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+          go-version: '1.23.x'
       - name: Get release tag
         id: get_tag
         run: |
@@ -115,11 +98,11 @@ jobs:
           fi
 
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v5
+        uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser
           version: latest
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CGO_ENABLED: 1
+          CGO_ENABLED: 0
