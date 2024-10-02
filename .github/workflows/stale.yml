@@ -1,0 +1,37 @@
+name: 😴 Lazy Issue and PR Wrangler
+
+on:
+  schedule:
+    - cron: '0 1 * * *'  # Runs at 01:00 UTC every day
+  workflow_dispatch: # Allows you to run this workflow manually from the Actions tab
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/stale@v9
+      with:
+        repo-token: ${{ secrets.GITHUB_TOKEN }}
+        stale-issue-message: 'Uh oh! This issue has fallen into a lazy slumber! 😴 It will be gently tucked away if no one pokes it soon. Thanks for keeping our project lively!'
+        stale-pr-message: 'Looks like this pull request decided to take a siesta! 🛌 It will be tucked into bed if it keeps snoozing. Thanks for your awesome contributions!'
+        close-issue-message: 'This issue has decided to hibernate! 🐻 Feel free to wake it up if you think it still needs attention!'
+        close-pr-message: 'This pull request has gone into deep sleep mode! 💤 Feel free to give it a wake-up call if you think it still needs attention!'
+        stale-issue-label: '🥱 Too Lazy'
+        stale-pr-label: '🥱 Too Lazy'
+        days-before-stale: 30
+        days-before-close: 7
+        exempt-issue-labels: 'pinned,security,🚀 priority'
+        exempt-pr-labels: 'pinned,security,🚀 priority'
+        exempt-all-milestones: true
+        exempt-all-assignees: false
+        remove-stale-when-updated: true
+        delete-branch: false
+        enable-statistics: true
+        operations-per-run: 100
+        ascending: true
+        any-of-labels: ''
+        any-of-pr-labels: ''
+        ignore-updates: false
+        start-date: ''
+        only-labels: ''
+        only-pr-labels: ''

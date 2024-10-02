@@ -1,0 +1,53 @@
+name: 🐛 Bug Report
+description: File a bug report (because even lazy code sometimes misbehaves)
+title: "[Bug]: "
+labels: ["bug", "triage"]
+assignees:
+  - igorcosta
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report! Let's squash this bug faster than you can say "automation"!
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: What version of our lazy masterpiece are you running?
+      placeholder: ex. v0.0.3
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Also tell us, what did you expect to happen? Did the laziness backfire?
+      placeholder: Tell us what you see!
+      value: "A wild bug appeared!"
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: What operating system are you using? (We support laziness on all platforms!)
+      multiple: true
+      options:
+        - Windows
+        - macOS
+        - Linux
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log output
+      description: Please copy and paste any relevant log output. This will be automatically formatted into code, so no need for backticks. (We promise we'll read it... eventually)
+      render: shell
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Code of Conduct
+      description: By submitting this issue, you agree to follow our [Code of Conduct](https://github.com/igorcosta/gh-lazy/blob/main/CODE_OF_CONDUCT.md) (TL;DR Be excellent to each other!)
+      options:
+        - label: I agree to follow this project's Code of Conduct (and to stay lazy)
+          required: true
