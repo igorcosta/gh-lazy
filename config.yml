@@ -20,188 +20,276 @@ aliases:
   - name: "pr-clean"
     description: "Clean up merged and closed pull requests"
     command: "!gh pr list -s all -L 500 --json number,state,title,isCrossRepository | jq -r '.[] | select(.state == \"MERGED\" or .state == \"CLOSED\") | select(.isCrossRepository == false) | \"gh pr delete \\(.number) -y\"' | sh"
+    category: "GitHub"
+    example: "gh pr-clean"
 
   - name: "pr-checks"
     description: "Show pull request checks with filtering"
     command: "pr view --json number,headRefName,statusCheckRollup --jq '.statusCheckRollup[] | select(.conclusion != \"SUCCESS\") | {name: .name, conclusion: .conclusion, title: .title}'"
+    category: "GitHub"
+    example: "gh pr-checks"
 
   - name: "issue-triage"
     description: "List and sort issues by reactions"
     command: "issue list --limit 100 --json number,title,reactions --jq 'sort_by(-(.reactions.THUMBS_UP + .reactions.HEART + .reactions.HOORAY)) | .[] | \"#\\(.number) (\\(.reactions.THUMBS_UP)👍 \\(.reactions.HEART)❤️ \\(.reactions.HOORAY)🎉) \\(.title)\"'"
+    category: "GitHub"
+    example: "gh issue-triage"
 
   - name: "contrib-stats"
     description: "Show contributor statistics"
     command: "!gh api repos/:owner/:repo/stats/contributors --jq '[.[] | {author: .author.login, total: .total, weeks: [.weeks[].c] | add}] | sort_by(-.total)'"
+    category: "GitHub"
+    example: "gh contrib-stats"
 
   - name: "repo-traffic"
     description: "View repository traffic data"
     command: "!gh api repos/:owner/:repo/traffic/views --jq '.views | sort_by(-.timestamp)[] | [.timestamp, .count, .uniques] | @tsv' | column -t"
+    category: "GitHub"
+    example: "gh repo-traffic"
 
   - name: "release-notes"
     description: "Generate release notes between tags"
     command: "!gh api repos/:owner/:repo/releases/generate-notes -f tag_name='v1.0.0' -f target_commitish=main -f previous_tag_name='v0.9.0' --jq .body"
+    category: "GitHub"
+    example: "gh release-notes"
 
   - name: "workflow-failed"
     description: "List failed workflow runs"
     command: "run list --limit 20 --jq '.[] | select(.status == \"failure\") | [.databaseId, .workflowName, .headBranch, .event, .url] | @tsv' | column -t -s $'\t'"
+    category: "GitHub"
+    example: "gh workflow-failed"
 
   - name: "collab-add"
     description: "Add a collaborator with permission level"
     command: "api --method PUT repos/:owner/:repo/collaborators/:username -f permission=maintain"
+    category: "GitHub"
+    example: "gh collab-add username"
 
   - name: "branch-cleanup"
     description: "Delete local branches not on remote"
     command: "!git fetch -p && git branch -vv | awk '/: gone]/{print $1}' | xargs git branch -D"
+    category: "Git"
+    example: "git branch-cleanup"
 
   - name: "commit-search"
     description: "Search commits with extended details"
     command: "!gh api search/commits --jq '.items[] | {sha: .sha[0:7], author: .author.login, date: .commit.author.date, message: .commit.message | split(\"\n\")[0]}' -f q='repo::owner/:repo :search_term'"
+    category: "GitHub"
+    example: "gh commit-search 'fix bug'"
 
   - name: "issue-by-label"
     description: "List issues grouped by label"
     command: "!gh issue list --limit 100 --json number,title,labels --jq 'group_by(.labels[].name)[] | {label: .[0].labels[].name, issues: map({number, title})}'"
+    category: "GitHub"
+    example: "gh issue-by-label"
 
   - name: "pr-reviews"
     description: "List pull requests needing review"
     command: "pr list --json number,title,reviewDecision --jq '.[] | select(.reviewDecision == \"REVIEW_REQUIRED\") | \"#\\(.number) \\(.title)\"'"
+    category: "GitHub"
+    example: "gh pr-reviews"
 
   - name: "repo-size"
     description: "Show repository size and language breakdown"
     command: "!gh api repos/:owner/:repo/languages --jq 'to_entries | sort_by(-.value) | .[] | {language: .key, percentage: (.value / ([.[].value] | add) * 100 | floor)}' && gh api repos/:owner/:repo | jq '.size'"
+    category: "GitHub"
+    example: "gh repo-size"
 
   - name: "issue-velocity"
     description: "Calculate issue velocity (closed issues per day)"
     command: "!gh api repos/:owner/:repo/issues --jq '[.[] | select(.state == \"closed\")] | (length / (([.[-1].closed_at, .[0].closed_at] | map(fromdateiso8601) | .-) / 86400)) | round'"
+    category: "GitHub"
+    example: "gh issue-velocity"
 
   - name: "action-usage"
     description: "Show GitHub Actions usage for the month"
     command: "api /repos/:owner/:repo/actions/workflows -q '.workflows[] | [.name, .path, .state] | @tsv' | column -t -s $'\t'"
+    category: "GitHub"
+    example: "gh action-usage"
 
   - name: "pr-files"
     description: "List files changed in a pull request with stats"
     command: "pr view --json files --jq '.files[] | [.path, (.additions | tostring), (.deletions | tostring), (.changes | tostring)] | @tsv' | column -t -s $'\t' | sort -rnk4"
+    category: "GitHub"
+    example: "gh pr-files"
 
   - name: "issue-stale"
     description: "List stale issues (no activity in last 30 days)"
     command: "!gh issue list --json number,title,updatedAt --jq '.[] | select((.updatedAt | fromdateiso8601) < (now - 2592000)) | \"#\\(.number) \\(.title)\"'"
+    category: "GitHub"
+    example: "gh issue-stale"
 
   - name: "repo-compare"
     description: "Compare two branches and show diff stats"
     command: "!gh api repos/:owner/:repo/compare/:base...:head --jq '.files[] | [.filename, .status, .additions, .deletions, .changes] | @tsv' | column -t -s $'\t'"
+    category: "GitHub"
+    example: "gh repo-compare main feature-branch"
 
   - name: "dependabot-alerts"
     description: "List active Dependabot alerts"
     command: "api /repos/:owner/:repo/dependabot/alerts --jq '.[] | select(.state == \"open\") | {package: .dependency.package.name, severity: .security_advisory.severity, summary: .security_advisory.summary}'"
+    category: "GitHub"
+    example: "gh dependabot-alerts"
 
   - name: "pr-conflicts"
     description: "List pull requests with merge conflicts"
     command: "pr list --json number,title,mergeable --jq '.[] | select(.mergeable == \"CONFLICTING\") | \"#\\(.number) \\(.title)\"'"
+    category: "GitHub"
+    example: "gh pr-conflicts"
 
   - name: "contrib-heatmap"
     description: "Generate a contribution heatmap"
     command: "!gh api repos/:owner/:repo/stats/commit_activity --jq '.[] | [.week, .days[]] | @tsv' | awk '{for(i=2;i<=NF;i++) if($i>0) print strftime(\"%Y-%m-%d\", $1) \"\t\" $i}' | sort | uniq"
+    category: "GitHub"
+    example: "gh contrib-heatmap"
 
   - name: "issue-dependencies"
     description: "List issues with their dependencies"
     command: "!gh issue list --json number,title,body --jq '.[] | {number, title, dependencies: (.body | scan(\"#\\\\d+\") | unique)}'"
+    category: "GitHub"
+    example: "gh issue-dependencies"
 
   - name: "repo-topics"
     description: "List and manage repository topics"
     command: "!gh api repos/:owner/:repo/topics --jq '.names[]' && echo 'To add: gh api repos/:owner/:repo/topics -X PUT -f names[]=\"new-topic\"'"
+    category: "GitHub"
+    example: "gh repo-topics"
 
   - name: "workflow-dispatch"
     description: "Trigger a workflow dispatch event"
     command: "workflow run :workflow.yml -f param1=value1 -f param2=value2"
+    category: "GitHub"
+    example: "gh workflow-dispatch my-workflow.yml"
 
   - name: "code-owners"
     description: "List CODEOWNERS entries with file patterns"
     command: "!gh api repos/:owner/:repo/contents/CODEOWNERS --jq '.content' | base64 -d | grep -v '^#' | grep -v '^$'"
+    category: "GitHub"
+    example: "gh code-owners"
 
   - name: "pr-create"
     description: "Push current branch and create a PR"
     command: "!git push -u origin HEAD && gh pr create -w"
+    category: "Git"
+    example: "git pr-create"
 
   - name: "pr-work"
     description: "Checkout PR, create new branch, and open in browser"
     command: |
       !f() { gh pr checkout $1 && git checkout -b pr-$1-work && gh pr view -w; }; f
+    category: "Git"
+    example: "git pr-work 123"
 
   - name: "pr-fetch-all"
     description: "Fetch all PRs as local branches"
     command: "!gh pr list --limit 1000 --json number,headRefName | jq -r '.[] | \"git fetch origin pull/\\(.number)/head:pr-\\(.headRefName)\"' | sh"
+    category: "Git"
+    example: "git pr-fetch-all"
 
   - name: "amend-push"
     description: "Amend last commit and force push"
     command: "!git commit --amend --no-edit && git push --force-with-lease"
+    category: "Git"
+    example: "git amend-push"
 
   - name: "rebase-push"
     description: "Interactive rebase and force push"
     command: |
       !f() { git rebase -i HEAD~$1 && git push --force-with-lease; }; f
+    category: "Git"
+    example: "git rebase-push 3"
 
   - name: "wip-push"
     description: "Create a WIP commit and push"
     command: |
       !f() { git add . && git commit -m 'WIP: ${1:-Work in progress}' && git push; }; f
+    category: "Git"
+    example: "git wip-push 'Implementing new feature'"
 
   - name: "undo-commit"
     description: "Undo last commit but keep changes"
     command: "!git reset --soft HEAD^ && git status"
+    category: "Git"
+    example: "git undo-commit"
 
   - name: "diff-issue"
     description: "Show diff and create issue from it"
     command: "!git diff | gh issue create --body-file -"
+    category: "Git"
+    example: "git diff-issue"
 
   - name: "squash-pr"
     description: "Squash all commits on current branch and create a PR"
     command: |
       !f() { git reset $(git merge-base main HEAD) && git add -A && git commit -m "${1:-Squashed changes}" && git push -f && gh pr create -w; }; f
+    category: "Git"
+    example: "git squash-pr 'Refactor authentication system'"
 
   - name: "cherry-pick-pr"
     description: "Cherry-pick a commit from another PR"
     command: |
       !f() { gh pr diff $1 | git apply && git add . && git commit -m "Cherry-picked changes from PR #$1"; }; f
+    category: "Git"
+    example: "git cherry-pick-pr 123"
 
   - name: "new-feature"
     description: "Create new branch, commit, and create a PR"
     command: |
       !f() { git checkout -b feature-$1 && git commit --allow-empty -m "Feature: $1" && git push -u origin HEAD && gh pr create -w; }; f
+    category: "Git"
+    example: "git new-feature 'user-authentication'"
 
   - name: "sync-fork"
     description: "Sync fork with upstream, rebase, and force push"
     command: |
       !f() { git fetch upstream && git rebase upstream/main && git push --force-with-lease; }; f
+    category: "Git"
+    example: "git sync-fork"
 
   - name: "contributors"
     description: "List all contributors with their contribution stats"
     command: |
       !f() { git log --format='%aN' | sort -u | while read name; do echo -en "$name\t"; git log --author="$name" --pretty=tformat: --numstat | awk '{ add += $1; subs += $2; loc += $1 - $2 } END { printf "added lines: %s, removed lines: %s, total lines: %s\n", add, subs, loc }' -; done; }; f
+    category: "Git"
+    example: "git contributors"
 
   - name: "quick-release"
     description: "Create a release with auto-generated notes"
     command: |
       !f() { git tag $1 && git push origin $1 && gh release create $1 --generate-notes; }; f
+    category: "Git"
+    example: "git quick-release v1.0.0"
 
   - name: "find-branch"
     description: "Find and checkout to a branch containing a specific keyword"
     command: |
       !f() { git branch -a | grep -i "$1" | head -n 1 | xargs git checkout; }; f
+    category: "Git"
+    example: "git find-branch feature"
 
   - name: "branch-diff"
     description: "Show the diff of a file from two branches"
     command: |
       !f() { git diff origin/$1..origin/$2 -- $3; }; f
-
+    category: "Git"
+    example: "git branch-diff main feature-branch path/to/file.txt"
+  
   - name: "my-issues"
     description: "List all GitHub issues assigned to you"
     command: "!gh issue list --assignee @me"
+    category: "GitHub"
+    example: "gh my-issues"
 
   - name: "gistify"
     description: "Create a GitHub gist from a file"
     command: |
       !f() { gh gist create "$1"; }; f
+    category: "GitHub"
+    example: "gh gistify myfile.txt"
 
   - name: "clone-and-branch"
     description: "Clone a repository and create a new branch"
     command: |
       !f() { gh repo clone $1 && cd $(basename $1) && git checkout -b $2; }; f
+    category: "Git"
+    example: "git clone-and-branch https://github.com/user/repo.git new-feature-branch"
