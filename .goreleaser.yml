@@ -1,39 +1,37 @@
 project_name: gh-lazy
 
+before:
+  hooks:
+    - go mod tidy
+
 builds:
-  - id: macos
-    main: ./main.go
+  - id: gh-lazy
+    main: .
+    binary: gh-lazy
+    env:
+      - CGO_ENABLED=0
     goos:
+      - linux
+      - windows
       - darwin
     goarch:
       - amd64
       - arm64
-    env:
-      - CGO_ENABLED=1
+    ignore:
+      - goos: windows
+        goarch: arm64
     ldflags:
       - -s -w
       - -X github.com/igorcosta/gh-lazy/pkg/version.Version={{.Version}}
       - -X github.com/igorcosta/gh-lazy/pkg/version.Commit={{.Commit}}
-      - -X github.com/igorcosta/gh-lazy/pkg/version.Date={{.Date}}
-  - id: other
-    main: ./main.go
-    goos:
-      - linux
-      - windows
-    goarch:
-      - amd64
-      - arm64
-    env:
-      - CGO_ENABLED=1
-    ldflags:
-      - -s -w
-      - -X github.com/igorcosta/gh-lazy/pkg/version.Version={{.Version}}
-      - -X github.com/igorcosta/gh-lazy/pkg/version.Commit={{.Commit}}
-      - -X github.com/igorcosta/gh-lazy/pkg/version.Date={{.Date}}
+      - -X github.com/igorcosta/gh-lazy/pkg/version.BuildDate={{.Date}}
 
 archives:
   - format: tar.gz
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        format: zip
     files:
       - LICENSE
       - README.md
@@ -41,10 +39,8 @@ archives:
 checksum:
   name_template: 'checksums.txt'
 
-release:
-  github:
-    owner: igorcosta
-    name: gh-lazy
+snapshot:
+  name_template: "{{ incpatch .Version }}-next"
 
 changelog:
   sort: asc
@@ -54,3 +50,24 @@ changelog:
       - '^test:'
       - Merge pull request
       - Merge branch
+
+release:
+  github:
+    owner: igorcosta
+    name: gh-lazy
+
+  draft: false
+  prerelease: auto
+  mode: replace
+
+  header: |
+    ## gh lazy ({{ .Version }})
+
+    Welcome to this new release!
+
+  footer: |
+    ## Thanks!
+
+    Those were the changes on {{ .Tag }}!
+
+  name_template: "{{.ProjectName}}-v{{.Version}}"
