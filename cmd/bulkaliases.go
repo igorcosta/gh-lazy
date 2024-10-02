@@ -222,12 +222,6 @@ func confirmInstallation() bool {
 }
 
 func installAliases(aliases []Alias) {
-	gitConfigFile, err := getGitConfigPath()
-	if err != nil {
-		fmt.Printf("Error getting Git config file path: %s\n", err)
-		return
-	}
-
 	for _, alias := range aliases {
 		installAlias(alias)
 	}

@@ -185,3 +185,23 @@ Stuck? Need help? Just want to chat about the meaning of life?
 ---
 
 Remember: Stay Lazy, Stay Productive! 😴💻
+
+## 🎉 Special Thanks (aka The Lazy Hall of Fame) 🏆
+
+I've done this due to the community efforts, making it easy like a breeze. 🌬️ Because why work hard when you can work smart? 🧠💡
+
+Check out our [SPECIAL_THANKS.md](./SPECIAL_THANKS.md) for the full list of lazy legends who made this possible! 🦸‍♂️🦸‍♀️
+
+<details>
+<summary>Click here for a sneak peek of our gratitude (and some reactions)! 👀</summary>
+
+- To the coffee that fueled this project: ☕ (👍 x 1000)
+- To GitHub Copilot, our silent partner: 🥇 (🙏 x 99999999)
+- To our rubber duck debuggers: 🦆 (❤️ x 42)
+- To Cmd+C and Cmd+V, the real MVPs: 🏅 (🚀 x ∞)
+
+Remember, in the world of `gh-lazy`, we don't just stand on the shoulders of giants. We take the elevator! 🛗😎
+
+</details>
+
+P.S. If you're not lazy enough to click the link above, you're probably using this tool wrong. Just saying! 😉
