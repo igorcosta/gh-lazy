@@ -1,0 +1,47 @@
+name: 🤔 Question
+description: Ask a question about this project (because thinking is hard, and we're here to help)
+title: "[Question]: "
+labels: ["question"]
+assignees:
+  - igorcosta
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to ask a question! We're here to make your life lazier, one answer at a time.
+  - type: textarea
+    id: question
+    attributes:
+      label: Your Question
+      description: What would you like to know about gh-lazy? Don't be shy, there are no lazy questions!
+      placeholder: I'm wondering about how to be even lazier...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: What version of gh-lazy are you using? (if applicable) Don't worry if you're too lazy to check, we understand.
+      placeholder: ex. v0.0.3
+  - type: dropdown
+    id: os
+    attributes:
+      label: What operating system are you using? (if applicable) We support all levels of laziness across platforms!
+      multiple: true
+      options:
+        - Windows
+        - macOS
+        - Linux
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Add any other context or screenshots about your question here. Interpretive dance GIFs are also accepted.
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Code of Conduct
+      description: By submitting this issue, you agree to follow our [Code of Conduct](https://github.com/igorcosta/gh-lazy/blob/main/CODE_OF_CONDUCT.md) (and to spread the gospel of laziness)
+      options:
+        - label: I agree to follow this project's Code of Conduct (and to never manually set up a GitHub project again)
+          required: true
