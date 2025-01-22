@@ -1,90 +1,74 @@
-# 🚀 Lazy: Your productive gh and git superpowers 
+# Lazy: Your Productive Git and GitHub CLI Superpowers
 
 [![Awesome](https://cdn.rawgit.com/sindresorhus/awesome/d7305f38d29fed78fa85652e3a63e154dd8e8829/media/badge.svg)](https://github.com/sindresorhus/awesome)
 [![GitHub stars](https://img.shields.io/github/stars/igorcosta/gh-lazy.svg)](https://github.com/igorcosta/gh-lazy/stargazers)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
-> Because life's too short for manual setups and you don't have time to automate things!
+## Overview
 
-## 🎭 What's in a Name?
+Lazy is a tool designed to enhance your productivity by automating git and GitHub CLI commands. It simplifies the process of setting up and managing GitHub projects, issues, and milestones.
 
-**L**ightweight  
-**A**utomated  
-**Z**ero-effort  
-**Y**ielding-results  
+## Features
 
-## 🌟 Overview
+- Efficiently create and delete GitHub issues and milestones
+- Automate the setup of GitHub Projects (v2)
+- Customize task templates using JSON
+- Delete GitHub projects and issues with ease
+- Seamlessly integrate with GitHub CLI
+- Private LLM interface for Ollama or Llama-3.2 2b param
 
-Lazy is your secret weapon for turbocharging git, GitHub CLI commands. Say goodbye to tedious manual configurations, combined commands and hello to lightning-fast, automated awesomeness! We're so lazy that we took advantage of the existing `awesome github cli tool` and beautified it with laziness.
+## Requirements
 
-## 🚀 Features That'll Make You Go "Wow!"
+Before using Lazy, ensure you have the following:
 
-- 🏃‍♂️ Sprint through GitHub issue or issue`S` and milestone creation, deletion
-- 🤖 Automagically set up GitHub Projects (v2)
-- 🧙‍♂️ Customize task templates with the power of JSON
-- 🧨 **Nuke GitHub projects and issues with ease**
-- 🔗 Seamlessly integrate with GitHub CLI like a boss
-- Private LLM interface for Ollama or `Llama-3.2 2b param`
+1. Homebrew installed
+2. A GitHub account
+3. A valid GitHub token with appropriate permissions
+4. Basic knowledge of JSON
+5. Optional: If you have Ollama installed, configure an LLM for additional features
 
-## 🛠️ Requirements
+## Installation
 
-Before you embark on your Lazy journey, make sure you have:
+To install Lazy, follow these steps:
 
-1. Your laziness!
-2. [Homebrew](https://brew.sh/) installed (because we're fancy like that)
-3. A GitHub account (you're not living under a rock, are you?)
-4. A valid GitHub token with appropriate permissions (we'll show you how)
-5. Basic knowledge of JSON (don't worry, it's not rocket science)
-6. A burning desire to automate ALL THE THINGS!
-7. Optional: If you have ollama installed, configure an LLM for more awesome stuff!!!
-
-## 🏗️ Installation
-
-Let's get this party started:
-
-1. Fire up your terminal (and try not to feel like a hacker)
-2. Install the GitHub CLI (if you haven't already):
+1. Open your terminal.
+2. Install the GitHub CLI:
 
    ```bash
    brew install gh
    ```
 
-3. Install the Lazy extension (prepare to be amazed):
+3. Install the Lazy extension:
 
    ```bash
    gh extension install lazy
    ```
 
-4. Do a little victory dance 🕺💃
-
-## 🎮 Usage
-
-Time to unleash the power of Lazy:
+## Usage
 
 ### Creating Projects, Milestones, and Issues
 
 ```bash
-gh lazy create --repo "your-awesome-username/your-cool-repo" --tasks "path/to/your/amazing/tasks.json"
+gh lazy create --repo "your-username/your-repo" --tasks "path/to/tasks.json"
 ```
 
-#### 🎛️ Available Options for `create`
+#### Available Options for `create`
 
 ```bash
-Lazy - Your productive gh and git superpowers 
 Usage: gh lazy create [flags]
 
 Flags:
-  -r, --repo string         Your repository's name (e.g., 'cool-dev/awesome-project')
-  -t, --tasks string        Path to your magical tasks JSON file
+  -r, --repo string         The repository name (e.g., 'username/repo')
+  -t, --tasks string        Path to the tasks JSON file
   -f, --token-file string   Path to the file containing your GitHub token (default ".token")
 
 Example:
-  gh lazy create --repo cool-dev/awesome-project --tasks ./world-domination-plan.json
+  gh lazy create --repo username/repo --tasks ./tasks.json
 ```
 
-### 🧨 Nuking a Project
+### Deleting a Project
 
-Delete a GitHub project and optionally all linked issues.
+To delete a GitHub project and optionally all linked issues, use the following command:
 
 ```bash
 gh lazy nuke [--projectid <project_id_or_url>] [--all] [--dry-run]
@@ -93,22 +77,22 @@ gh lazy nuke [--projectid <project_id_or_url>] [--all] [--dry-run]
 - If you provide the `--projectid` (`-p`) flag, the command will delete the specified project.
 - If you omit the `--projectid` flag, the tool will:
 
-  1. **List all your available projects** and allow you to select one interactively.
-  2. **Ask if you want to perform a dry run first.**
-  3. **Ask if you want to delete all associated issues.**
+  1. List all your available projects and allow you to select one interactively.
+  2. Ask if you want to perform a dry run first.
+  3. Ask if you want to delete all associated issues.
 
-#### 🎛️ Available Options for `nuke`
+#### Available Options for `nuke`
 
 ```bash
 Usage: gh lazy nuke [flags]
 
 Flags:
-  -p, --projectid string   Project ID or URL to nuke
+  -p, --projectid string   Project ID or URL to delete
   -a, --all                Delete all issues linked to the project
       --dry-run            Show what would happen without making changes
 
 Example:
-  gh lazy nuke --projectid https://github.com/users/yourusername/projects/1 --all --dry-run
+  gh lazy nuke --projectid https://github.com/users/username/projects/1 --all --dry-run
 ```
 
 **Examples:**
@@ -124,7 +108,7 @@ Example:
 - **Dry Run Without Deleting Issues:**
 
   ```bash
-  gh lazy nuke --projectid https://github.com/users/yourusername/projects/1 --dry-run
+  gh lazy nuke --projectid https://github.com/users/username/projects/1 --dry-run
   ```
 
 - **Dry Run With Deleting Issues:**
@@ -139,69 +123,26 @@ Example:
   gh lazy nuke --projectid 1 --all
   ```
 
-- **Need to prepare your prompt for your favourite LLM?**
+- **Preparing a Prompt for LLM:**
 
 ```bash
 gh lazy codeprompt "given this project, I need to modify my version.go file, help me out" --system-prompt . --ignore-gitignore --ignore "go.sum" --ignore "*.md" --ignore "gh-lazy" -o prompt.txt 
-
 ```
 
----
+## Contributing
 
-## 🧙‍♂️ How It Works (Warning: Mind-Blowing Content Ahead)
+To contribute to Lazy, follow these steps:
 
-1. Lazy reads your JSON file faster than you can say "automation."
-2. It creates milestones and issues in your GitHub repo like a seasoned project manager on steroids.
-3. A shiny new GitHub Project (v2) materializes out of thin air.
-4. Issues are automagically added to the project, leaving you more time for coffee breaks.
-5. **Need to clean up? Use the `nuke` command to delete projects and issues effortlessly.**
+1. Fork the repository.
+2. Create a new branch (`git checkout -b feature/your-feature`).
+3. Commit your changes (`git commit -am 'Add new feature'`).
+4. Push to the branch (`git push origin feature/your-feature`).
+5. Create a new Pull Request.
 
----
+## License
 
-## 🤝 Contributing (Join the Lazy Revolution)
+This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details.
 
-Want to make Lazy even more awesome? Here's how:
+## Support
 
-1. Fork the repo (and star it while you're at it).
-2. Create a new branch (`git checkout -b feature/mind-blowing-idea`).
-3. Commit your changes (`git commit -am 'Add some mind-blowing feature'`).
-4. Push to the branch (`git push origin feature/mind-blowing-idea`).
-5. Create a new Pull Request and wait for the applause.
-
----
-
-## 📜 License
-
-This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details. (TL;DR: Do whatever you want, just don't blame us if your computer gains sentience)
-
----
-
-## 🆘 Support
-
-Stuck? Need help? Just want to chat about the meaning of life?
-
-- Open an issue in our GitHub repo.
-
----
-
-Remember: Stay Lazy, Stay Productive! 😴💻
-
-## 🎉 Special Thanks (aka The Lazy Hall of Fame) 🏆
-
-I've done this due to the community efforts, making it easy like a breeze. 🌬️ Because why work hard when you can work smart? 🧠💡
-
-[Special thanks](./SPECIAL_THANKs.md) for the full list of lazy legends who made this possible! 🦸‍♂️🦸‍♀️
-
-<details>
-<summary>Click here for a sneak peek of our gratitude (and some reactions)! 👀</summary>
-
-- To the coffee that fueled this project: ☕ (👍 x 1000)
-- To GitHub Copilot, our silent partner: 🥇 (🙏 x 99999999)
-- To our rubber duck debuggers: 🦆 (❤️ x 42)
-- To Cmd+C and Cmd+V, the real MVPs: 🏅 (🚀 x ∞)
-
-Remember, in the world of `gh-lazy`, we don't just stand on the shoulders of giants. We take the elevator! 🛗😎
-
-</details>
-
-P.S. If you're not lazy enough to click the link above, you're probably using this tool wrong. Just saying! 😉
+For support, open an issue in the GitHub repository.
